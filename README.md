@@ -23,4 +23,4 @@ Number 6 is intentionally unused to mirror the workflow this starter demonstrate
 
 ## Privacy
 
-The vault content intentionally contains no application configuration, attachments, real personal notes, credentials, contact data, external service references, or company/client material. Keep real personal notes in a private vault.
+The public sample contains no real personal data. The vault content intentionally contains no application configuration, attachments, real personal notes, credentials, contact data, external service references, or company/client material. Keep real personal notes in a private vault.

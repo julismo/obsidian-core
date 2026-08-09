@@ -8,7 +8,7 @@ tags:
 
 ## Source status
 
-Example only. Add a concise summary rather than private source content.
+Source status: example only
 
 ## Useful idea
 

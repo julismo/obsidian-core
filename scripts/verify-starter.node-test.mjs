@@ -407,6 +407,58 @@ test("CLI redacts a secret-shaped relative destination from stderr", () => {
   }
 });
 
+test("example source is explicitly marked as example-only and has no URL", () => {
+  const content = readFileSync(
+    fileURLToPath(new URL("../2%20-%20Source%20Materials/Example%20Source.md", import.meta.url)),
+    "utf8",
+  );
+
+  assert.match(content, /^Source status: example only$/m);
+  assert.doesNotMatch(content, /(?:https?:\/\/|www\.)/i);
+});
+
+test("every numbered folder README links relatively to Home", () => {
+  const numberedReadmes = [
+    "0 - Knowledge Base/README.md",
+    "1 - Rough Notes/README.md",
+    "2 - Source Materials/README.md",
+    "3 - Tags/README.md",
+    "4 - Index/README.md",
+    "7 - Personal/README.md",
+  ];
+
+  for (const relativePath of numberedReadmes) {
+    const content = readFileSync(fileURLToPath(new URL(`../${encodeURI(relativePath)}`, import.meta.url)), "utf8");
+    assert.match(content, /\[[^\]]+\]\((?:\.\.\/)?4%20-%20Index\/Home\.md\)|\[[^\]]+\]\(Home\.md\)/);
+  }
+});
+
+test("Home matches the approved public navigation contract", () => {
+  const content = readFileSync(
+    fileURLToPath(new URL("../4%20-%20Index/Home.md", import.meta.url)),
+    "utf8",
+  );
+
+  assert.equal(content, [
+    "# Home",
+    "",
+    "- [[0 - Knowledge Base/Example Knowledge Note]]",
+    "- [[1 - Rough Notes/Example Rough Note]]",
+    "- [[2 - Source Materials/Example Source]]",
+    "- [[3 - Tags/Status]]",
+    "",
+    "## Reused block",
+    "",
+    "![[1 - Rough Notes/Example Rough Note#^refine-note]]",
+    "",
+  ].join("\n"));
+});
+
+test("root README states that the public sample has no real personal data", () => {
+  const content = readFileSync(fileURLToPath(new URL("../README.md", import.meta.url)), "utf8");
+  assert.match(content, /public sample contains no real personal data/i);
+});
+
 test("package metadata declares the MIT license", () => {
   const packageMetadata = JSON.parse(readFileSync(
     fileURLToPath(new URL("../package.json", import.meta.url)),
