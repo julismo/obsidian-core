@@ -235,7 +235,7 @@ function readBlob(rootDirectory, objectId) {
   return gitBuffer(rootDirectory, ["cat-file", "blob", objectId]);
 }
 
-export function scanTrackedRepository(rootDirectory, revision) {
+export function scanTrackedRepository(rootDirectory, revision, { history = false } = {}) {
   const findings = [];
   let repositoryRoot;
   let entries;
@@ -247,7 +247,7 @@ export function scanTrackedRepository(rootDirectory, revision) {
   }
 
   for (const entry of entries) {
-    if (!publicFileSet.has(normalizePath(entry.path))) {
+    if (!history && !publicFileSet.has(normalizePath(entry.path))) {
       findings.push(finding("unexpected_tracked_file", entry.path, isConfigurationPath(normalizePath(entry.path))));
     }
     const pathFindings = scanEntries([{ path: entry.path, text: "" }]);
@@ -286,9 +286,11 @@ function formatFinding(finding) {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
-    const revisions = process.argv.slice(2);
-    if (revisions.length > 1) throw new Error("too many arguments");
-    const findings = scanTrackedRepository(process.cwd(), revisions[0]);
+    const argumentsList = process.argv.slice(2);
+    const history = argumentsList[0] === "--history";
+    const revisions = history ? argumentsList.slice(1) : argumentsList;
+    if (revisions.length > 1 || (history && revisions.length !== 1)) throw new Error("invalid arguments");
+    const findings = scanTrackedRepository(process.cwd(), revisions[0], { history });
     if (findings.length > 0) {
       console.error(findings.some((item) => item.category === "scan_error")
         ? "scan_error"
