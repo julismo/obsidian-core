@@ -37,6 +37,14 @@ deliberately skipped so the personal boundary stays at 7 even as sections are ad
     1.7 Maintenance System/
     Strategic Planning/
   2. Projects/
+    _example-project/
+      01 - Brief/
+      02 - Operations/
+      03 - Manual/
+        Procedures/
+      04 - Triage/
+      05 - Demo/
+      06 - Validation/
     _project-template/
       00 - Agent Scaffold/
         02 - Rules and Governance/
@@ -137,6 +145,11 @@ not part of the deliverable, and `99 - Models` holds the reusable pieces. Number
 sparse so a stage can be inserted without renaming the rest. `00 - Agent Scaffold` is
 the per-project automation setup, and `08 - Memory` splits durable notes into
 `feedback`, `project`, and `reference` so retrieval stays predictable.
+
+`_example-project` is the same shape with notes in it. The company in those notes is
+invented; they exist so the conventions are visible rather than described. Read them in
+order to see how a brief becomes a procedure, a triage row, a demo, and finally a check
+somebody can tick.
 
 `3. Resources` is reference material that is not tied to a project.
 `Systems/Agent Patterns` separates `Global` setup from `Cross-Project` patterns and a
