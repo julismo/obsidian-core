@@ -12,7 +12,7 @@ function credentialCandidate() {
 }
 
 function createFixture() {
-  return mkdtempSync(join(tmpdir(), "obsidian-starter-"));
+  return mkdtempSync(join(tmpdir(), "obsidian-core-"));
 }
 
 function git(rootDirectory, args, options = {}) {

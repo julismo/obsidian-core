@@ -1,6 +1,6 @@
-# Obsidian Starter
+# Obsidian Core
 
-A simple Obsidian starter with a clear structure and reusable note templates.
+A clear Obsidian structure with reusable note templates.
 
 ## Start
 
