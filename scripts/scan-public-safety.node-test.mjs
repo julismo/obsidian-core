@@ -485,7 +485,7 @@ test("detects internal filesystem paths in tracked paths and content", () => {
   const candidates = [
     ["C", ":", `${BS}dev${BS}vault${BS}private-note.md`].join(""),
     ["D", ":", "/backup/vault"].join(""),
-    ["C", ":", "Users"].join(""),
+    ["C", ":", `Users${BS}operator${BS}vault`].join(""),
     ["~", "/vault/private"].join(""),
     ["/", "home", "/operator/vault"].join(""),
     ["/", "Users", "/operator/Documents/vault"].join(""),
@@ -574,6 +574,52 @@ test("scans commit messages, which blobs alone would never reveal", () => {
     assert.deepEqual(findings, [{ category: "commit_metadata", path: revision }]);
     assert.equal(JSON.stringify(findings).includes(emailAddress), false);
   });
+});
+
+test("scans the checked out commit message without an explicit revision", () => {
+  withRepository((rootDirectory) => {
+    writeFileSync(path.join(rootDirectory, "README.md"), "clean content\n");
+    stage(rootDirectory, "README.md");
+    const emailAddress = ["author", "example.com"].join("@");
+    commit(rootDirectory, `chore: tidy\n\nReported by <${emailAddress}>\n`);
+
+    const findings = scanTrackedRepository(rootDirectory);
+    assert.equal(findings.some((item) => item.category === "commit_metadata"), true);
+    assert.equal(JSON.stringify(findings).includes(emailAddress), false);
+  });
+});
+
+test("scans commit headers that carry authored text, not just the body", () => {
+  withRepository((rootDirectory) => {
+    writeFileSync(path.join(rootDirectory, "README.md"), "clean content\n");
+    stage(rootDirectory, "README.md");
+    const base = commit(rootDirectory, "base");
+    const externalUrl = ["https", "://", "example.test", "/leak"].join("");
+    // An arbitrary header, the shape "mergetag" and "encoding" take.
+    const raw = [
+      `tree ${git(rootDirectory, ["rev-parse", `${base}^{tree}`]).trim()}`,
+      // Split so this file does not itself contain a ten digit run, which the compact
+      // telephone rule would flag when the scanner reads its own tests.
+      `author Test <t@example.test> ${["17", "000", "00000"].join("")} +0000`,
+      `committer Test <t@example.test> ${["17", "000", "00000"].join("")} +0000`,
+      `note ${externalUrl}`,
+      "",
+      "clean body",
+      "",
+    ].join("\n");
+    const objectId = execFileSync("git", ["-C", rootDirectory, "hash-object", "-w", "-t", "commit", "--stdin"], {
+      encoding: "utf8",
+      input: raw,
+    }).trim();
+
+    assert.deepEqual(scanTrackedRepository(rootDirectory, objectId, { history: true }), [
+      { category: "commit_metadata", path: objectId },
+    ]);
+  });
+});
+
+test("does not treat ratio notation as a drive-relative path", () => {
+  assert.deepEqual(scanEntries([{ path: "note.md", text: "Mixed at a ratio of A:1 by volume." }]), []);
 });
 
 test("accepts a clean commit message and ignores inherent Git identity lines", () => {

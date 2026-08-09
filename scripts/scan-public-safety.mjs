@@ -140,8 +140,10 @@ const internalFilesystemRoots = [
 // escaped backslash sequence in source code, and this module scans its own tests, so the
 // rule would report far more noise than signal. The allowlist remains the real control.
 const internalFilesystemPathPattern = new RegExp([
-  // Drive-qualified path, whether or not a separator follows the colon.
-  `(?<![A-Za-z0-9])[A-Za-z]:[\\\\/]?[A-Za-z0-9._$-][^\\s"'<>|]*`,
+  // Drive-qualified path. Either a separator follows the colon, or a drive-relative
+  // segment does and a separator appears later. Requiring a separator somewhere keeps
+  // ratio notation such as a letter, a colon and a digit from reading as a path.
+  `(?<![A-Za-z0-9])[A-Za-z]:(?:[\\\\/][^\\s"'<>|]*|[A-Za-z0-9._$-]+[\\\\/][^\\s"'<>|]*)`,
   // Home shorthand, with or without a trailing user name.
   `(?<![A-Za-z0-9._-])~[A-Za-z0-9._-]*\\/[^\\s"'<>|]*`,
   // Well-known absolute roots that reveal a real machine layout.
@@ -366,17 +368,38 @@ function readBlob(rootDirectory, objectId) {
 // Only the message body is scanned. Author and committer headers are inherent Git identity
 // that cannot be removed from a commit, so flagging them would make every repository
 // unpublishable. The finding carries the commit id alone, never the offending text.
+// Headers excluded from scanning, and why each one is safe to skip:
+//   tree, parent  object ids, no authored text
+//   author,       inherent Git identity. It can be rewritten, but every commit carries an
+//   committer     address by design, so flagging it would fail any repository.
+//   gpgsig        machine-generated base64 that carries no authored text and would only
+//                 produce chance matches.
+// Everything else, including mergetag and encoding, is scanned along with the body.
+const inertCommitHeaders = new Set(["tree", "parent", "author", "committer", "gpgsig"]);
+
+function commitScannableText(raw) {
+  const headerEnd = raw.search(/\r?\n\r?\n/);
+  const headerBlock = headerEnd === -1 ? raw : raw.slice(0, headerEnd);
+  const body = headerEnd === -1 ? "" : raw.slice(headerEnd).replace(/^\r?\n\r?\n/, "");
+  const scannableHeaders = [];
+  let currentHeader = "";
+  for (const line of headerBlock.split(/\r?\n/)) {
+    // A leading space continues the previous header across lines.
+    if (!line.startsWith(" ")) currentHeader = line.split(" ", 1)[0];
+    if (!inertCommitHeaders.has(currentHeader)) scannableHeaders.push(line);
+  }
+  return [...scannableHeaders, body].join("\n");
+}
+
 function scanCommitMessage(rootDirectory, revision) {
   let raw;
   try {
     raw = gitBuffer(rootDirectory, ["cat-file", "commit", revision]).toString("utf8");
   } catch {
-    return [{ category: "scan_error", path: "." }];
+    // A repository with no commits yet has nothing to scan.
+    return [];
   }
-  const separator = raw.search(/\r?\n\r?\n/);
-  if (separator === -1) return [];
-  const body = raw.slice(separator).replace(/^\r?\n\r?\n/, "");
-  const violations = scanEntries([{ path: "COMMIT_MESSAGE", text: body }]);
+  const violations = scanEntries([{ path: "COMMIT_MESSAGE", text: commitScannableText(raw) }]);
   return violations.length > 0 ? [{ category: "commit_metadata", path: revision }] : [];
 }
 
@@ -393,9 +416,9 @@ export function scanTrackedRepository(rootDirectory, revision, { history = false
   } catch {
     return [finding("scan_error", ".")];
   }
-  if (revision !== undefined) {
-    findings.push(...scanCommitMessage(repositoryRoot, revision));
-  }
+  // Defaults to HEAD so a local run catches a bad commit message too, rather than leaving
+  // it to the history loop in CI.
+  findings.push(...scanCommitMessage(repositoryRoot, revision ?? "HEAD"));
 
   for (const entry of entries) {
     // Matched against the raw Git path: any lossy transformation here would let a

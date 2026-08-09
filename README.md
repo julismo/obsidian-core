@@ -17,12 +17,26 @@ The privacy claim above is checked by machine rather than by discipline:
 - `npm run scan:public-safety` rejects credentials, contact data, external URLs, internal
   filesystem paths, application configuration, attachments, and commit messages carrying
   any of those.
-- CI runs both on every push and re-scans every reachable commit, so nothing can hide in
-  history.
+- CI runs both on every push, and re-scans the content of every reachable commit.
 
-The allowlist is the control that actually holds: paths are compared as raw Git bytes, so
-one file can never inherit another's permission. The pattern rules are defence in depth,
-not a guarantee, and they are deliberately narrow to stay useful.
+The allowlist is the control that actually holds for the current tree: paths are compared
+as raw Git paths, so one file can never inherit another's permission. The pattern rules
+are defence in depth, not a guarantee, and they are deliberately narrow to stay useful.
+
+### What this does not cover
+
+Worth stating plainly, because a guarantee that overreaches is worse than none:
+
+- History is scanned for content, not for shape. The allowlist and the internal-path rule
+  are not applied to past commits, because this repository predates the current taxonomy.
+  A file that was committed and later removed is only caught if its *content* matches a
+  rule.
+- Commits reachable only from a closed pull request are not in `git rev-list --all`, so CI
+  never sees them. Force-pushing over a commit does not remove it from a forge.
+- Author and committer addresses are not scanned. Every commit carries one by design.
+- The pattern rules match common shapes, not every shape. They will miss an unusual one.
+
+Treat the allowlist as the boundary and the rest as help.
 
 ## Start
 
