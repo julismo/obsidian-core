@@ -2,9 +2,10 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { publicFiles, redactSensitiveText } from "./scan-public-safety.mjs";
+import { publicFiles, redactSensitiveText, structuralDirectories } from "./scan-public-safety.mjs";
 
 export const requiredFiles = publicFiles;
+export { structuralDirectories };
 
 const isExternalOrAnchor = /^(?:[a-z][a-z\d+.-]*:|#|\/)/i;
 const trackingValidationFailed = Symbol("tracking_validation_failed");
@@ -171,6 +172,12 @@ export function verifyStarter(rootDirectory) {
       if (!trackedPaths.has(relativePath)) {
         errors.push(`Required file is not tracked: ${relativePath}`);
       }
+    }
+  }
+  for (const relativePath of requiredFiles.filter((item) => item.endsWith("/.gitkeep"))) {
+    if (!validRequiredFiles.has(relativePath)) continue;
+    if (readFileSync(path.join(resolvedRoot, relativePath), "utf8").length > 0) {
+      errors.push(`Structural placeholder is not empty: ${relativePath}`);
     }
   }
   for (const relativePath of requiredFiles.filter((item) => item.endsWith(".md"))) {

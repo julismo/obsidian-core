@@ -1,6 +1,12 @@
 # Obsidian Core
 
-A public-safe Obsidian structure with reusable note templates.
+A public-safe structural mirror of the Obsidian vault I actually work in.
+
+The folder architecture here is the real one. The contents are not. There are no real
+notes, no personal data, no client or company material, no application configuration,
+no attachments, and no internal paths. Empty folders are held open with `.gitkeep` so
+the shape survives Git. Read [STRUCTURE.md](STRUCTURE.md) for the reasoning behind the
+layout, or use the repository directly as a starting vault.
 
 ## Start
 
@@ -20,6 +26,7 @@ A public-safe Obsidian structure with reusable note templates.
 - [7 - Personal](7%20-%20Personal/README.md) as a boundary for material that belongs only in a private vault.
 
 Number 6 is intentionally unused to mirror the workflow this starter demonstrates.
+[STRUCTURE.md](STRUCTURE.md) maps every subfolder and explains what belongs where.
 
 ## Privacy
 
