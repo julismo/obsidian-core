@@ -117,7 +117,9 @@ function trackedGitEntries(rootDirectory, canonicalRoot) {
       const separator = record.indexOf(0x09);
       if (separator === -1) continue;
       const [mode, , stage] = record.subarray(0, separator).toString("ascii").split(" ");
-      const entryPath = record.subarray(separator + 1).toString("utf8").replaceAll("\\", "/");
+      // Kept raw. Collapsing separators here would let a distinct file match an
+      // allowlisted path and pass verification.
+      const entryPath = record.subarray(separator + 1).toString("utf8");
       entries.push({ mode, path: entryPath, stage });
     }
     return entries;
@@ -164,7 +166,9 @@ export function verifyStarter(rootDirectory) {
       const safePath = sanitizeLinkTarget(redactSensitiveText(entry.path));
       if (!allowedFiles.has(entry.path)) {
         errors.push(`Unexpected tracked file: ${safePath}`);
-      } else if (!/^100[0-7]{3}$/.test(entry.mode) || entry.stage !== "0") {
+      // Exactly 100644: a vault of Markdown and placeholders has no executable content,
+      // so a wider mode range would only admit modes this repository never needs.
+      } else if (entry.mode !== "100644" || entry.stage !== "0") {
         errors.push(`Invalid tracked file mode: ${safePath}`);
       }
     }

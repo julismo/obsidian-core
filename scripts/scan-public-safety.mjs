@@ -124,7 +124,27 @@ const externalUrlPattern = /\bhttps?:\/\/[^\s<>"']+/gi;
 const emailPattern = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.(?!example\b|invalid\b|localhost\b|test\b)[A-Z]{2,}\b/gi;
 const telephonePattern = /\+\d(?:[\s().-]*\d){7,14}\b|(?<![A-Za-z0-9])\d{9,10}(?![A-Za-z0-9])|(?<![A-Za-z0-9:.-])(?!(?:\d{4}-\d{2}-\d{2})\b)(?:\(\d{2,4}\)|\d{2,4})(?:[ -]+\d{2,4}){2,4}\b/g;
 const configurationPathPattern = /(?<![A-Za-z0-9_.-])\.(?:obsidian|config)(?:[\\/]|$)|(?<![A-Za-z0-9_.-])plugins?[\\/]/gim;
-const internalFilesystemPathPattern = /(?<![A-Za-z0-9])[A-Za-z]:[\\/][^\s"'<>|]*|(?<![A-Za-z0-9._-])\/(?:home|mnt|media|Users|root|srv|opt)\/[^\s"'<>|]*/gi;
+const internalFilesystemRoots = [
+  "home", "mnt", "media", "Users", "root", "srv", "opt",
+  "Volumes", "private", "var", "workspace",
+];
+// Examples are described rather than written literally: this module scans its own source,
+// so a sample path in a comment would be a finding against itself.
+// Network shares are deliberately not matched. Their shape is indistinguishable from an
+// escaped backslash sequence in source code, and this module scans its own tests, so the
+// rule would report far more noise than signal. The allowlist remains the real control.
+const internalFilesystemPathPattern = new RegExp([
+  // Drive-qualified path, whether or not a separator follows the colon.
+  `(?<![A-Za-z0-9])[A-Za-z]:[\\\\/]?[A-Za-z0-9._$-][^\\s"'<>|]*`,
+  // Home shorthand, with or without a trailing user name.
+  `(?<![A-Za-z0-9._-])~[A-Za-z0-9._-]*\\/[^\\s"'<>|]*`,
+  // Well-known absolute roots that reveal a real machine layout.
+  `(?<![A-Za-z0-9._-])\\/(?:${internalFilesystemRoots.join("|")})\\/[^\\s"'<>|]*`,
+].join("|"), "gi");
+// Git always separates path segments with "/". A literal backslash therefore belongs to a
+// filename, and collapsing it would let a distinct file inherit an allowlisted path's
+// permission. Such paths are rejected outright rather than normalized.
+const forbiddenPathCharacter = String.fromCharCode(92);
 const prohibitedBrandPattern = new RegExp(
   `\\b(?:${[
     ["Open", "AI"],
@@ -170,8 +190,10 @@ export function redactSensitiveText(value) {
   return redactedValue;
 }
 
+// Never normalizes: Git already separates segments with "/", so the only paths this would
+// change are malformed ones, and hiding the offending character would mislead the reader.
 function safePresentationPath(entryPath) {
-  const safePath = redactSensitiveText(normalizePath(entryPath));
+  const safePath = redactSensitiveText(entryPath);
   return safePath.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, (character) => {
     return `\\u${character.codePointAt(0).toString(16).padStart(4, "0")}`;
   });
@@ -179,6 +201,10 @@ function safePresentationPath(entryPath) {
 
 function finding(category, entryPath, redactPath = false) {
   return { category, path: redactPath ? redactedSpan : safePresentationPath(entryPath) };
+}
+
+export function hasForbiddenPathCharacter(entryPath) {
+  return entryPath.includes(forbiddenPathCharacter);
 }
 
 function isConfigurationPath(value) {
@@ -202,6 +228,10 @@ export function scanEntries(entries, { history = false } = {}) {
     ? contentRules.filter(([category]) => category !== "internal_path")
     : contentRules;
   for (const entry of entries) {
+    if (hasForbiddenPathCharacter(entry.path)) {
+      findings.push(finding("malformed_path", entry.path));
+      continue;
+    }
     const normalizedPath = normalizePath(entry.path);
     const entryText = searchableText(entry, normalizedPath);
     if (isConfigurationPath(normalizedPath)) {
@@ -324,6 +354,26 @@ function readBlob(rootDirectory, objectId) {
   return gitBuffer(rootDirectory, ["cat-file", "blob", objectId]);
 }
 
+// Reads the raw commit object rather than a "git log" format, which is already a
+// transformed view subject to mailmap and encoding rules.
+//
+// Only the message body is scanned. Author and committer headers are inherent Git identity
+// that cannot be removed from a commit, so flagging them would make every repository
+// unpublishable. The finding carries the commit id alone, never the offending text.
+function scanCommitMessage(rootDirectory, revision) {
+  let raw;
+  try {
+    raw = gitBuffer(rootDirectory, ["cat-file", "commit", revision]).toString("utf8");
+  } catch {
+    return [{ category: "scan_error", path: "." }];
+  }
+  const separator = raw.search(/\r?\n\r?\n/);
+  if (separator === -1) return [];
+  const body = raw.slice(separator).replace(/^\r?\n\r?\n/, "");
+  const violations = scanEntries([{ path: "COMMIT_MESSAGE", text: body }]);
+  return violations.length > 0 ? [{ category: "commit_metadata", path: revision }] : [];
+}
+
 export function scanTrackedRepository(rootDirectory, revision, { history = false } = {}) {
   if (history && (typeof revision !== "string" || revision.trim().length === 0)) {
     return [finding("scan_error", ".")];
@@ -337,9 +387,14 @@ export function scanTrackedRepository(rootDirectory, revision, { history = false
   } catch {
     return [finding("scan_error", ".")];
   }
+  if (revision !== undefined) {
+    findings.push(...scanCommitMessage(repositoryRoot, revision));
+  }
 
   for (const entry of entries) {
-    if (!history && !publicFileSet.has(normalizePath(entry.path))) {
+    // Matched against the raw Git path: any lossy transformation here would let a
+    // distinct file collide with an allowlisted entry and inherit its permission.
+    if (!history && !publicFileSet.has(entry.path)) {
       findings.push(finding("unexpected_tracked_file", entry.path, isConfigurationPath(normalizePath(entry.path))));
     }
     const pathFindings = scanEntries([{ path: entry.path, text: "" }], { history });

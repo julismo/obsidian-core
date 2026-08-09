@@ -1,12 +1,28 @@
 # Obsidian Core
 
-A public-safe structural mirror of the Obsidian vault I actually work in.
+An opinionated Obsidian vault taxonomy, published together with the tooling that keeps it
+safe to publish.
 
-The folder architecture here is the real one. The contents are not. There are no real
-notes, no personal data, no client or company material, no application configuration,
-no attachments, and no internal paths. Empty folders are held open with `.gitkeep` so
-the shape survives Git. Read [STRUCTURE.md](STRUCTURE.md) for the reasoning behind the
-layout, or use the repository directly as a starting vault.
+There are no real notes here, no personal data, no client or company material, no
+application configuration, no attachments, and no internal paths. Empty folders are held
+open with `.gitkeep` so the shape survives Git. Read [STRUCTURE.md](STRUCTURE.md) for what
+belongs where, or use the repository directly as a starting vault.
+
+## Enforcement
+
+The privacy claim above is checked by machine rather than by discipline:
+
+- `npm run verify` holds the repository to an exact allowlist. A file that is not on the
+  list fails the build, and structural placeholders must be empty.
+- `npm run scan:public-safety` rejects credentials, contact data, external URLs, internal
+  filesystem paths, application configuration, attachments, and commit messages carrying
+  any of those.
+- CI runs both on every push and re-scans every reachable commit, so nothing can hide in
+  history.
+
+The allowlist is the control that actually holds: paths are compared as raw Git bytes, so
+one file can never inherit another's permission. The pattern rules are defence in depth,
+not a guarantee, and they are deliberately narrow to stay useful.
 
 ## Start
 
