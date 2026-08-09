@@ -165,6 +165,28 @@ test("rejects a non-regular tracked mode for an allowed file", () => {
   }
 });
 
+test("rejects an executable mode on an allowlisted file", () => {
+  const rootDirectory = createFixture();
+  try {
+    writeCompleteFixture(rootDirectory);
+    initializeTrackedFixture(rootDirectory);
+    const objectId = git(rootDirectory, ["hash-object", "-w", "--stdin"], {
+      input: "# Fixture\n",
+    }).trim();
+    git(rootDirectory, [
+      "update-index",
+      "--add",
+      "--cacheinfo",
+      `100755,${objectId},5 - Templates/Knowledge Note.md`,
+    ]);
+    assert.deepEqual(verifyStarter(rootDirectory), [
+      "Invalid tracked file mode: 5 - Templates/Knowledge Note.md",
+    ]);
+  } finally {
+    rmSync(rootDirectory, { recursive: true, force: true });
+  }
+});
+
 test("fails closed when a Git repository index cannot be enumerated", () => {
   const rootDirectory = createFixture();
   try {
@@ -458,7 +480,9 @@ test("Home matches the approved public navigation contract", () => {
   ].join("\n"));
 });
 
-test("mirrors every structural directory as an empty tracked placeholder", () => {
+// Tracking itself is enforced by verifyStarter against the Git index; this only asserts
+// that every mirrored directory exists on disk, is empty, and is on the allowlist.
+test("mirrors every structural directory as an empty allowlisted placeholder", () => {
   for (const directory of structuralDirectories) {
     const placeholder = fileURLToPath(new URL(`../${encodeURI(directory)}/.gitkeep`, import.meta.url));
     assert.equal(readFileSync(placeholder, "utf8"), "");

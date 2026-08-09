@@ -1,8 +1,8 @@
 # Structure
 
-This repository is a structural mirror of a working private vault. Every folder below
-exists in the private original. None of the notes do. Folders with nothing public to
-show are held open with an empty `.gitkeep`.
+This repository publishes a vault taxonomy and the reasoning behind it. The notes that
+would live in these folders are not here. Folders with nothing public to show are held
+open with an empty `.gitkeep`.
 
 Read this file to understand where a note goes and why. Start browsing at
 [Home](4%20-%20Index/Home.md).
@@ -132,8 +132,8 @@ reusable `profiles` and `templates`.
 
 `2. Projects` gives every project an identical folder. `_project-template` is that
 shape, kept empty and copied for each new one. The two-digit prefixes are a lifecycle:
-`01` to `06` run from brief to validation, `90 - Internal` holds material that never
-leaves the team, and `99 - Models` holds the reusable pieces. Numbers are deliberately
+`01` to `06` run from brief to validation, `90 - Internal` holds working material that is
+not part of the deliverable, and `99 - Models` holds the reusable pieces. Numbers are deliberately
 sparse so a stage can be inserted without renaming the rest. `00 - Agent Scaffold` is
 the per-project automation setup, and `08 - Memory` splits durable notes into
 `feedback`, `project`, and `reference` so retrieval stays predictable.

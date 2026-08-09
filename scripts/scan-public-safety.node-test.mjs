@@ -256,7 +256,9 @@ test("allowlists exactly one placeholder per structural directory", () => {
   );
 });
 
-test("structural directories carry no client, personal, or brand identifiers", () => {
+// Names the guarantee accurately: this checks the mechanical rules only. Whether a folder
+// name is a real client or person is a human review question that no regex can settle.
+test("structural directories are plain ASCII and pass every mechanical rule", () => {
   for (const directory of scanner.structuralDirectories) {
     assert.deepEqual(scanEntries([{ path: `${directory}/.gitkeep`, text: "" }]), []);
     assert.match(directory, /^[0-9A-Za-z _.\-/]+$/);
@@ -473,12 +475,19 @@ test("detects external URL, contact, and prohibited brand text", () => {
 });
 
 test("detects internal filesystem paths in tracked paths and content", () => {
+  const BS = String.fromCharCode(92);
   const candidates = [
-    ["C", ":", "\\dev\\vault\\private-note.md"].join(""),
+    ["C", ":", `${BS}dev${BS}vault${BS}private-note.md`].join(""),
     ["D", ":", "/backup/vault"].join(""),
+    ["C", ":", "Users"].join(""),
+    ["~", "/vault/private"].join(""),
     ["/", "home", "/operator/vault"].join(""),
     ["/", "Users", "/operator/Documents/vault"].join(""),
     ["/", "mnt", "/c/dev/vault"].join(""),
+    ["/", "Volumes", "/Backup/vault"].join(""),
+    ["/", "private", "/", "var", "/folders/vault"].join(""),
+    ["/", "var", "/", "data/vault"].join(""),
+    ["/", "workspace", "/vault"].join(""),
   ];
   const findings = scanEntries(candidates.map((candidate, index) => ({
     path: `internal-${index}.md`,
@@ -494,10 +503,11 @@ test("detects internal filesystem paths in tracked paths and content", () => {
 });
 
 test("redacts internal filesystem paths instead of echoing them", () => {
-  const candidate = ["C", ":", "\\dev\\vault"].join("");
+  const BS = String.fromCharCode(92);
+  const candidate = ["C", ":", `${BS}dev${BS}vault`].join("");
   assert.equal(scanner.redactSensitiveText(`from ${candidate} here`), "from [REDACTED] here");
-  assert.deepEqual(scanEntries([{ path: `notes/${candidate}/note.md`, text: "" }]), [
-    { category: "internal_path", path: "notes/[REDACTED]" },
+  assert.deepEqual(scanEntries([{ path: "note.md", text: `Synced from ${candidate} today.` }]), [
+    { category: "internal_path", path: "note.md" },
   ]);
 });
 
@@ -508,10 +518,73 @@ test("does not treat ordinary prose colons or root-relative links as internal pa
   ]), []);
 });
 
+const BACKSLASH = String.fromCharCode(92);
+
+test("rejects a raw Git path that would collapse onto an allowlisted path", () => {
+  // A literal backslash is legal in a Linux filename, so this is a DIFFERENT file from
+  // the allowlisted "0 - Knowledge Base/README.md". It must never inherit its permission.
+  const collided = `0 - Knowledge Base${BACKSLASH}README.md`;
+  assert.deepEqual(scanEntries([{ path: collided, text: "private client prose\n" }]), [
+    { category: "malformed_path", path: collided },
+  ]);
+});
+
+test("never treats a backslash path as allowlisted in a tracked repository", () => {
+  withRepository((rootDirectory) => {
+    // Written through mktree because Git for Windows rejects such a path in the index,
+    // while the Linux runner used by CI accepts it. The scanner must reject it on both.
+    const collided = `0 - Knowledge Base${BACKSLASH}README.md`;
+    const treeId = createTree(rootDirectory, "100644", collided, "private client prose\n");
+    const revision = createCommit(rootDirectory, treeId);
+
+    assert.deepEqual(scanTrackedRepository(rootDirectory, revision), [
+      { category: "unexpected_tracked_file", path: collided },
+      { category: "malformed_path", path: collided },
+    ]);
+  });
+});
+
+test("keeps every other path-confusion class flagged by exact matching", () => {
+  const variants = [
+    "0 - Knowledge Base//README.md",
+    "0 - Knowledge Base/./README.md",
+    "0 - Knowledge Base/README.md ",
+    "0 - knowledge base/readme.md",
+    "/0 - Knowledge Base/README.md",
+  ];
+  for (const variant of variants) {
+    assert.equal(scanner.publicFiles.includes(variant), false, `${variant} must not be allowlisted`);
+  }
+});
+
+test("scans commit messages, which blobs alone would never reveal", () => {
+  withRepository((rootDirectory) => {
+    writeFileSync(path.join(rootDirectory, "README.md"), "clean content\n");
+    stage(rootDirectory, "README.md");
+    const emailAddress = ["author", "example.com"].join("@");
+    const revision = commit(rootDirectory, `chore: tidy\n\nCo-Authored-By: Someone <${emailAddress}>\n`);
+
+    const findings = scanTrackedRepository(rootDirectory, revision, { history: true });
+    assert.deepEqual(findings, [{ category: "commit_metadata", path: revision }]);
+    assert.equal(JSON.stringify(findings).includes(emailAddress), false);
+  });
+});
+
+test("accepts a clean commit message and ignores inherent Git identity lines", () => {
+  withRepository((rootDirectory) => {
+    writeFileSync(path.join(rootDirectory, "README.md"), "clean content\n");
+    stage(rootDirectory, "README.md");
+    // The committer address is unavoidable Git metadata, so it must not be a finding.
+    const revision = commit(rootDirectory, "feat: add a section\n\nA plain body with no policy violations.\n");
+
+    assert.deepEqual(scanTrackedRepository(rootDirectory, revision, { history: true }), []);
+  });
+});
+
 test("relaxes internal path detection only in history mode", () => {
   const entries = [{
     path: "note.md",
-    text: `Synced from ${["C", ":", "\\dev\\vault"].join("")} last night.`,
+    text: `Synced from ${["C", ":", `${BACKSLASH}dev${BACKSLASH}vault`].join("")} last night.`,
   }];
   assert.deepEqual(scanEntries(entries), [{ category: "internal_path", path: "note.md" }]);
   assert.deepEqual(scanEntries(entries, { history: true }), []);
@@ -519,7 +592,7 @@ test("relaxes internal path detection only in history mode", () => {
 
 test("history mode relaxes internal paths while still reporting credentials", () => {
   withRepository((rootDirectory) => {
-    const internalPath = ["C", ":", "\\dev\\vault\\note.md"].join("");
+    const internalPath = ["C", ":", `${BACKSLASH}dev${BACKSLASH}vault${BACKSLASH}note.md`].join("");
     writeFileSync(path.join(rootDirectory, "README.md"), `Synced from ${internalPath}\n`);
     writeFileSync(path.join(rootDirectory, "SECURITY.md"), classicCredentialCandidate());
     stage(rootDirectory, "README.md");
