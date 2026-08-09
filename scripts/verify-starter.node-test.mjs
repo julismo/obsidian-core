@@ -479,11 +479,47 @@ test("Home matches the approved public navigation contract", () => {
     "- [[2 - Source Materials/Example Source]]",
     "- [[3 - Tags/Status]]",
     "",
+    "## Worked example",
+    "",
+    "A project read in order, from brief to acceptance.",
+    "",
+    "- [[_example-project/01 - Brief/Engagement Brief]]",
+    "- [[_example-project/02 - Operations/Operating Rhythm]]",
+    "- [[_example-project/03 - Manual/Procedures/Intake Procedure]]",
+    "- [[_example-project/04 - Triage/Triage Log]]",
+    "- [[_example-project/05 - Demo/Demo Script]]",
+    "- [[_example-project/06 - Validation/Acceptance Checklist]]",
+    "",
     "## Reused block",
     "",
     "![[1 - Rough Notes/Example Rough Note#^refine-note]]",
     "",
   ].join("\n"));
+});
+
+test("the threat model states what is defended and what is not", () => {
+  const content = readFileSync(fileURLToPath(new URL("../THREAT-MODEL.md", import.meta.url)), "utf8");
+  assert.match(content, /not defended/i);
+  assert.match(content, /deliberate publication/i);
+  // The promise must never be overstated into a guarantee or a legal claim.
+  assert.doesNotMatch(content, /privacy guarantee|guarantees privacy|GDPR|compliance/i);
+  for (const actor of ["Accident", "collaborator", "fork", "metadata"]) {
+    assert.match(content, new RegExp(actor, "i"), `threat model omits ${actor}`);
+  }
+});
+
+test("neither README nor threat model promises a guarantee or legal compliance", () => {
+  for (const relativePath of ["../README.md", "../THREAT-MODEL.md"]) {
+    const content = readFileSync(fileURLToPath(new URL(relativePath, import.meta.url)), "utf8");
+    assert.doesNotMatch(content, /privacy guarantee|guarantees privacy|GDPR|legally compliant/i);
+  }
+});
+
+test("code ownership covers the policy, the scanner and the workflow that validates them", () => {
+  const content = readFileSync(fileURLToPath(new URL("../.github/CODEOWNERS", import.meta.url)), "utf8");
+  for (const guarded of ["/scripts/", "/.github/workflows/", "/.github/CODEOWNERS"]) {
+    assert.equal(content.includes(guarded), true, `CODEOWNERS does not guard ${guarded}`);
+  }
 });
 
 // Tracking itself is enforced by verifyStarter against the Git index; this only asserts

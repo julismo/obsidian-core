@@ -144,6 +144,7 @@ function runCli(rootDirectory, ...revisions) {
 
 test("exports the exact numbered-vault public document allowlist", () => {
   assert.deepEqual(scanner.publicFiles.filter((entry) => !entry.endsWith("/.gitkeep")), [
+    ".github/CODEOWNERS",
     ".github/workflows/ci.yml",
     ".gitignore",
     "0 - Knowledge Base/README.md",
@@ -172,6 +173,7 @@ test("exports the exact numbered-vault public document allowlist", () => {
     "README.md",
     "SECURITY.md",
     "STRUCTURE.md",
+    "THREAT-MODEL.md",
     "package-lock.json",
     "package.json",
     "scripts/scan-public-safety.mjs",
@@ -547,6 +549,39 @@ test("never treats a backslash path as allowlisted in a tracked repository", () 
       { category: "unexpected_tracked_file", path: collided },
       { category: "malformed_path", path: collided },
     ]);
+  });
+});
+
+// Guards the assumption that makes decoding safe. While every allowlisted path is ASCII,
+// byte-exact and text-exact comparison are equivalent, so no test can demonstrate a bypass.
+// If a non-ASCII path is ever allowlisted, this fails and forces the decode question to be
+// answered deliberately rather than inherited.
+test("every allowlisted path is ASCII, so decoding cannot fold two paths together", () => {
+  for (const entry of scanner.publicFiles) {
+    assert.match(entry, /^[\x20-\x7e]+$/, `${entry} is not ASCII`);
+  }
+});
+
+test("rejects a tracked path whose bytes are not valid UTF-8", () => {
+  withRepository((rootDirectory) => {
+    const invalid = Buffer.from([0x66, 0x69, 0x6c, 0x65, 0xff, 0xfe, 0x2e, 0x6d, 0x64]);
+    const objectId = execFileSync("git", ["-C", rootDirectory, "hash-object", "-w", "--stdin"], {
+      encoding: "utf8",
+      input: "clean text\n",
+    }).trim();
+    const entry = Buffer.concat([
+      Buffer.from(`100644 blob ${objectId}\t`),
+      invalid,
+      Buffer.from([0]),
+    ]);
+    const treeId = execFileSync("git", ["-C", rootDirectory, "mktree", "-z"], {
+      encoding: "utf8",
+      input: entry,
+    }).trim();
+    const revision = createCommit(rootDirectory, treeId);
+
+    const findings = scanTrackedRepository(rootDirectory, revision);
+    assert.equal(findings.some((item) => item.category === "unexpected_tracked_file"), true);
   });
 });
 

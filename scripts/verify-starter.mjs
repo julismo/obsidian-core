@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { publicFiles, redactSensitiveText, structuralDirectories } from "./scan-public-safety.mjs";
+import { isAuthorizedPath, publicFiles, redactSensitiveText, structuralDirectories } from "./scan-public-safety.mjs";
 
 export const requiredFiles = publicFiles;
 export { structuralDirectories };
@@ -117,10 +117,10 @@ function trackedGitEntries(rootDirectory, canonicalRoot) {
       const separator = record.indexOf(0x09);
       if (separator === -1) continue;
       const [mode, , stage] = record.subarray(0, separator).toString("ascii").split(" ");
-      // Kept raw. Collapsing separators here would let a distinct file match an
-      // allowlisted path and pass verification.
-      const entryPath = record.subarray(separator + 1).toString("utf8");
-      entries.push({ mode, path: entryPath, stage });
+      // Kept raw, and authorized on bytes. Collapsing separators or decoding before the
+      // check would let a distinct file match an allowlisted path and pass verification.
+      const pathBytes = record.subarray(separator + 1);
+      entries.push({ mode, path: pathBytes.toString("utf8"), pathBytes, stage });
     }
     return entries;
   } catch {
@@ -160,11 +160,10 @@ export function verifyStarter(rootDirectory) {
   if (trackedEntries === trackingValidationFailed) {
     errors.push("Git tracking validation failed");
   } else if (trackedEntries !== null) {
-    const allowedFiles = new Set(requiredFiles);
     const trackedPaths = new Set(trackedEntries.map((entry) => entry.path));
     for (const entry of trackedEntries) {
       const safePath = sanitizeLinkTarget(redactSensitiveText(entry.path));
-      if (!allowedFiles.has(entry.path)) {
+      if (!isAuthorizedPath(entry.pathBytes ?? entry.path)) {
         errors.push(`Unexpected tracked file: ${safePath}`);
       // Exactly 100644: a vault of Markdown and placeholders has no executable content,
       // so a wider mode range would only admit modes this repository never needs.

@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const publicDocuments = [
+  ".github/CODEOWNERS",
   ".github/workflows/ci.yml",
   ".gitignore",
   "0 - Knowledge Base/README.md",
@@ -31,6 +32,7 @@ const publicDocuments = [
   "README.md",
   "SECURITY.md",
   "STRUCTURE.md",
+  "THREAT-MODEL.md",
   "package-lock.json",
   "package.json",
   "scripts/scan-public-safety.mjs",
@@ -117,6 +119,16 @@ export const publicFiles = Object.freeze([
 ]);
 
 const publicFileSet = new Set(publicFiles);
+// Authorization compares raw path bytes. Every allowlisted path is ASCII today, so this is
+// equivalent to comparing text, and a test guards that. Keeping the comparison on bytes
+// means the guarantee does not quietly depend on a decoder if that ever changes.
+const publicFileBytes = new Set(publicFiles.map((entry) => Buffer.from(entry, "utf8").toString("latin1")));
+
+export function isAuthorizedPath(pathBytes) {
+  return publicFileBytes.has(Buffer.isBuffer(pathBytes)
+    ? pathBytes.toString("latin1")
+    : Buffer.from(pathBytes, "utf8").toString("latin1"));
+}
 const credentialPatterns = [
   /gh[pousr]_[A-Za-z0-9_]{20,}/g,
   new RegExp(`${["git", "hub"].join("")}_pat_[A-Za-z0-9_]{20,}`, "g"),
@@ -313,9 +325,10 @@ function parseGitEntries(output, revision) {
     if (separator === -1) continue;
     const header = record.subarray(0, separator).toString("ascii").split(" ");
     const objectId = revision ? header[2] : header[1];
-    const entryPath = record.subarray(separator + 1).toString("utf8");
-    if (!/^[0-7]{6}$/.test(header[0]) || !/^[0-9a-f]{40,64}$/.test(objectId) || entryPath.length === 0) continue;
-    entries.push({ mode: header[0], objectId, path: entryPath });
+    const pathBytes = record.subarray(separator + 1);
+    const entryPath = pathBytes.toString("utf8");
+    if (!/^[0-7]{6}$/.test(header[0]) || !/^[0-9a-f]{40,64}$/.test(objectId) || pathBytes.length === 0) continue;
+    entries.push({ mode: header[0], objectId, path: entryPath, pathBytes });
   }
   return entries;
 }
@@ -421,9 +434,9 @@ export function scanTrackedRepository(rootDirectory, revision, { history = false
   findings.push(...scanCommitMessage(repositoryRoot, revision ?? "HEAD"));
 
   for (const entry of entries) {
-    // Matched against the raw Git path: any lossy transformation here would let a
-    // distinct file collide with an allowlisted entry and inherit its permission.
-    if (!history && !publicFileSet.has(entry.path)) {
+    // Matched against the raw Git path bytes: any lossy transformation here, including a
+    // decode, could let a distinct file collide with an allowlisted entry.
+    if (!history && !isAuthorizedPath(entry.pathBytes ?? entry.path)) {
       findings.push(finding("unexpected_tracked_file", entry.path, isConfigurationPath(normalizePath(entry.path))));
     }
     const pathFindings = scanEntries([{ path: entry.path, text: "" }], { history });
