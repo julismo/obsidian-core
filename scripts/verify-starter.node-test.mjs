@@ -407,14 +407,13 @@ test("CLI redacts a secret-shaped relative destination from stderr", () => {
   }
 });
 
-test("example source is explicitly marked as example-only and has no URL", () => {
+test("example source contains only the invented title and example-only status", () => {
   const content = readFileSync(
     fileURLToPath(new URL("../2%20-%20Source%20Materials/Example%20Source.md", import.meta.url)),
     "utf8",
   );
 
-  assert.match(content, /^Source status: example only$/m);
-  assert.doesNotMatch(content, /(?:https?:\/\/|www\.)/i);
+  assert.equal(content, "Example Source\nSource status: example only\n");
 });
 
 test("every numbered folder README links relatively to Home", () => {
