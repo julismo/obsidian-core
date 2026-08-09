@@ -194,8 +194,13 @@ function searchableText(entry, normalizedPath) {
     .join("\n");
 }
 
-export function scanEntries(entries) {
+export function scanEntries(entries, { history = false } = {}) {
   const findings = [];
+  // Historical blobs predate the internal-path rule and cannot be corrected without
+  // rewriting published history. Every secret-bearing rule still applies to them.
+  const activeRules = history
+    ? contentRules.filter(([category]) => category !== "internal_path")
+    : contentRules;
   for (const entry of entries) {
     const normalizedPath = normalizePath(entry.path);
     const entryText = searchableText(entry, normalizedPath);
@@ -220,7 +225,7 @@ export function scanEntries(entries) {
     if (structuralPlaceholderPattern.test(normalizedPath) && entryText.length > 0) {
       findings.push(finding("non_empty_placeholder", normalizedPath));
     }
-    for (const [category, ...patterns] of contentRules) {
+    for (const [category, ...patterns] of activeRules) {
       let matched = false;
       for (const pattern of patterns) {
         pattern.lastIndex = 0;
@@ -337,7 +342,7 @@ export function scanTrackedRepository(rootDirectory, revision, { history = false
     if (!history && !publicFileSet.has(normalizePath(entry.path))) {
       findings.push(finding("unexpected_tracked_file", entry.path, isConfigurationPath(normalizePath(entry.path))));
     }
-    const pathFindings = scanEntries([{ path: entry.path, text: "" }]);
+    const pathFindings = scanEntries([{ path: entry.path, text: "" }], { history });
     if (pathFindings.length > 0) {
       findings.push(...pathFindings);
       continue;
@@ -359,7 +364,7 @@ export function scanTrackedRepository(rootDirectory, revision, { history = false
       findings.push(...scanEntries([{
         path: entry.path,
         text: blob.toString("utf8"),
-      }]));
+      }], { history }));
     } catch {
       findings.push(finding("unreadable_file", entry.path));
     }
