@@ -1,0 +1,17 @@
+# A change to the policy, the checks, or the workflow that runs them should never pass
+# unreviewed alongside a change to content. Listing them here records that intent and
+# makes it enforceable the moment this repository has more than one contributor.
+#
+# CODEOWNERS alone requires nothing. Enforcement comes from branch settings that require
+# review from these owners, which live outside the repository.
+
+# The published file allowlist and both checks
+/scripts/ @julismo
+
+# The workflow that runs the checks, and this file
+/.github/workflows/ @julismo
+/.github/CODEOWNERS @julismo
+
+# The stated boundary and what it does not cover
+/THREAT-MODEL.md @julismo
+/SECURITY.md @julismo

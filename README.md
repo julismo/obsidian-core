@@ -1,16 +1,23 @@
 # Obsidian Core
 
-An opinionated Obsidian vault taxonomy, published together with the tooling that keeps it
-safe to publish.
+A reference implementation of publishing a vault taxonomy on purpose: the folder structure,
+a worked example, and the tooling that keeps the published set explicit.
 
-There are no real notes here, no personal data, no client or company material, no
-application configuration, no attachments, and no internal paths. Empty folders are held
-open with `.gitkeep` so the shape survives Git. Read [STRUCTURE.md](STRUCTURE.md) for what
-belongs where, or use the repository directly as a starting vault.
+Everything here was chosen. There are no real notes, no personal data, no client or company
+material, no application configuration, no attachments, and no internal paths. Empty folders
+are held open with `.gitkeep` so the shape survives Git.
 
-## Enforcement
+Read [STRUCTURE.md](STRUCTURE.md) for what belongs where, and
+[THREAT-MODEL.md](THREAT-MODEL.md) for what the tooling does and does not cover.
 
-The privacy claim above is checked by machine rather than by discipline:
+You are welcome to copy the parts that fit. Be aware that the exact allowlist in `scripts/`
+is what makes the published set explicit, and it is deliberately strict: adding a note means
+adding it to the list. That is the right trade for a repository whose job is to publish a
+known set, and the wrong one for a vault you intend to grow freely.
+
+## How the published set is kept explicit
+
+Checked by machine rather than by discipline:
 
 - `npm run verify` holds the repository to an exact allowlist. A file that is not on the
   list fails the build, and structural placeholders must be empty.
@@ -38,12 +45,15 @@ Worth stating plainly, because a guarantee that overreaches is worse than none:
 
 Treat the allowlist as the boundary and the rest as help.
 
-## Start
+## Reading it
+
+The taxonomy is easiest to judge from inside Obsidian, where the links resolve.
 
 1. Clone or download this repository.
-2. Open its root folder as a vault in Obsidian.
+2. Open its root folder as a vault.
 3. Set `5 - Templates/` as the templates folder if you use that core feature.
-4. Start at [Home](4%20-%20Index/Home.md), then capture or refine a note where it belongs.
+4. Start at [Home](4%20-%20Index/Home.md), then read the worked example in order, from brief
+   to acceptance.
 
 ## Structure
 
@@ -55,9 +65,13 @@ Treat the allowlist as the boundary and the rest as help.
 - [5 - Templates](5%20-%20Templates/Daily%20Note.md) for note starting points.
 - [7 - Personal](7%20-%20Personal/README.md) as a boundary for material that belongs only in a private vault.
 
-Number 6 is intentionally unused to mirror the workflow this starter demonstrates.
+Number 6 is intentionally unused to mirror the workflow this repository demonstrates.
 [STRUCTURE.md](STRUCTURE.md) maps every subfolder and explains what belongs where.
 
 ## Privacy
 
 The public sample contains no real personal data. The vault content intentionally contains no application configuration, attachments, real personal notes, credentials, contact data, external service references, or company/client material. Keep real personal notes in a private vault.
+
+The tooling here is a guardrail for deliberate publication, not a privacy boundary.
+[THREAT-MODEL.md](THREAT-MODEL.md) sets out what it catches, what it does not, and why the
+strongest arrangement is keeping the private corpus in a separate repository altogether.
