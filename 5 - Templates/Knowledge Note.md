@@ -1,3 +1,8 @@
+---
+tags:
+  - kind/knowledge
+---
+
 # {{title}}
 
 ## Idea
