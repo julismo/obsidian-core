@@ -42,6 +42,12 @@ test("exports the numbered vault taxonomy without legacy starter paths", () => {
   const numberedVaultFiles = [
     "0 - Knowledge Base/README.md",
     "0 - Knowledge Base/Example Knowledge Note.md",
+    "0 - Knowledge Base/2. Projects/_example-project/01 - Brief/Engagement Brief.md",
+    "0 - Knowledge Base/2. Projects/_example-project/02 - Operations/Operating Rhythm.md",
+    "0 - Knowledge Base/2. Projects/_example-project/03 - Manual/Procedures/Intake Procedure.md",
+    "0 - Knowledge Base/2. Projects/_example-project/04 - Triage/Triage Log.md",
+    "0 - Knowledge Base/2. Projects/_example-project/05 - Demo/Demo Script.md",
+    "0 - Knowledge Base/2. Projects/_example-project/06 - Validation/Acceptance Checklist.md",
     "1 - Rough Notes/README.md",
     "1 - Rough Notes/Example Rough Note.md",
     "2 - Source Materials/README.md",
@@ -511,6 +517,40 @@ test("STRUCTURE.md documents every mirrored directory", () => {
     for (const segment of segments) {
       assert.equal(content.includes(segment), true, `STRUCTURE.md omits "${segment}"`);
     }
+  }
+});
+
+const exampleProjectPrefix = "0 - Knowledge Base/2. Projects/_example-project/";
+
+// The worked example exists to show what lives in each stage. If a stage is ever added to
+// the template, this fails until the example covers it too.
+test("the example project covers every delivery stage of the project template", () => {
+  const stagePattern = /^0 - Knowledge Base\/2\. Projects\/_project-template\/(0[1-6] - [^/]+)/;
+  const templateStages = new Set();
+  for (const directory of structuralDirectories) {
+    const match = directory.match(stagePattern);
+    if (match) templateStages.add(match[1]);
+  }
+
+  assert.equal(templateStages.size, 6);
+  for (const stage of templateStages) {
+    assert.equal(
+      requiredFiles.some((item) => item.startsWith(`${exampleProjectPrefix}${stage}/`)),
+      true,
+      `the example project has no note for ${stage}`,
+    );
+  }
+});
+
+test("every example project note is tagged and substantive", () => {
+  const notes = requiredFiles.filter((item) => item.startsWith(exampleProjectPrefix));
+  assert.equal(notes.length, 6);
+  for (const note of notes) {
+    const content = readFileSync(fileURLToPath(new URL(`../${encodeURI(note)}`, import.meta.url)), "utf8");
+    assert.match(content, /^---\r?\n/, `${note} needs frontmatter`);
+    assert.match(content, /kind\/project/, `${note} needs a kind tag`);
+    assert.match(content, /invented/i, `${note} must state that it is invented`);
+    assert.equal(content.length > 300, true, `${note} is too thin to teach anything`);
   }
 });
 
