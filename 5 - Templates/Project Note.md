@@ -1,5 +1,7 @@
 ---
-status: active
+tags:
+  - kind/project
+  - status/active
 ---
 
 # {{title}}

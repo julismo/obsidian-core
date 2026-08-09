@@ -1,7 +1,7 @@
 ---
 date: {{date:YYYY-MM-DD}}
 tags:
-  - daily
+  - kind/daily
 ---
 
 # {{date:YYYY-MM-DD}}

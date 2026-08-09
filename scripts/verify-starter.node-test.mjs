@@ -38,6 +38,43 @@ function writeCompleteFixture(rootDirectory) {
   }
 }
 
+test("exports the numbered vault taxonomy without legacy starter paths", () => {
+  const numberedVaultFiles = [
+    "0 - Knowledge Base/README.md",
+    "0 - Knowledge Base/Example Knowledge Note.md",
+    "1 - Rough Notes/README.md",
+    "1 - Rough Notes/Example Rough Note.md",
+    "2 - Source Materials/README.md",
+    "2 - Source Materials/Example Source.md",
+    "3 - Tags/README.md",
+    "3 - Tags/Status.md",
+    "4 - Index/README.md",
+    "4 - Index/Home.md",
+    "5 - Templates/Daily Note.md",
+    "5 - Templates/Knowledge Note.md",
+    "5 - Templates/Source Note.md",
+    "5 - Templates/Project Note.md",
+    "7 - Personal/README.md",
+  ];
+  const legacyPrefixes = [
+    "00 Inbox/",
+    "10 Projects/",
+    "20 Areas/",
+    "30 Resources/",
+    "40 Archive/",
+    "Templates/",
+  ];
+
+  assert.deepEqual(
+    requiredFiles.filter((relativePath) => /^\d - /.test(relativePath)),
+    numberedVaultFiles,
+  );
+  assert.equal(
+    requiredFiles.some((relativePath) => legacyPrefixes.some((prefix) => relativePath.startsWith(prefix))),
+    false,
+  );
+});
+
 test("accepts a complete starter fixture", () => {
   const rootDirectory = createFixture();
   try {
@@ -78,11 +115,11 @@ test("redacts an unexpected configuration path alongside invalid mode diagnostic
       "update-index",
       "--add",
       "--cacheinfo",
-      `120000,${objectId},Templates/Note.md`,
+      `120000,${objectId},5 - Templates/Knowledge Note.md`,
     ]);
 
     const errors = verifyStarter(rootDirectory);
-    assert.equal(errors.includes("Invalid tracked file mode: Templates/Note.md"), true);
+    assert.equal(errors.includes("Invalid tracked file mode: 5 - Templates/Knowledge Note.md"), true);
     assert.equal(errors.includes("Unexpected tracked file: [REDACTED]"), true);
     assert.equal(JSON.stringify(errors).includes(relativePath), false);
   } finally {
@@ -95,9 +132,9 @@ test("rejects an untracked required file when Git tracking is available", () => 
   try {
     writeCompleteFixture(rootDirectory);
     initializeTrackedFixture(rootDirectory);
-    git(rootDirectory, ["rm", "--cached", "--", "Templates/Note.md"]);
+    git(rootDirectory, ["rm", "--cached", "--", "5 - Templates/Knowledge Note.md"]);
     assert.deepEqual(verifyStarter(rootDirectory), [
-      "Required file is not tracked: Templates/Note.md",
+      "Required file is not tracked: 5 - Templates/Knowledge Note.md",
     ]);
   } finally {
     rmSync(rootDirectory, { recursive: true, force: true });
@@ -116,10 +153,10 @@ test("rejects a non-regular tracked mode for an allowed file", () => {
       "update-index",
       "--add",
       "--cacheinfo",
-      `120000,${objectId},Templates/Note.md`,
+      `120000,${objectId},5 - Templates/Knowledge Note.md`,
     ]);
     assert.deepEqual(verifyStarter(rootDirectory), [
-      "Invalid tracked file mode: Templates/Note.md",
+      "Invalid tracked file mode: 5 - Templates/Knowledge Note.md",
     ]);
   } finally {
     rmSync(rootDirectory, { recursive: true, force: true });
@@ -144,8 +181,8 @@ test("reports a missing required template", () => {
   const rootDirectory = createFixture();
   try {
     writeCompleteFixture(rootDirectory);
-    rmSync(join(rootDirectory, "Templates", "Note.md"));
-    assert.deepEqual(verifyStarter(rootDirectory), ["Missing required file: Templates/Note.md"]);
+    rmSync(join(rootDirectory, "5 - Templates", "Knowledge Note.md"));
+    assert.deepEqual(verifyStarter(rootDirectory), ["Missing required file: 5 - Templates/Knowledge Note.md"]);
   } finally {
     rmSync(rootDirectory, { recursive: true, force: true });
   }
@@ -257,13 +294,17 @@ test("accepts a relative destination containing balanced parentheses", () => {
 test("rejects a required Markdown source that escapes through a directory junction", () => {
   const rootDirectory = createFixture();
   const externalDirectory = createFixture();
-  const inboxDirectory = join(rootDirectory, "00 Inbox");
+  const inboxDirectory = join(rootDirectory, "1 - Rough Notes");
   try {
     writeCompleteFixture(rootDirectory);
     writeFileSync(join(externalDirectory, "README.md"), "[External](missing.md)\n", "utf8");
+    writeFileSync(join(externalDirectory, "Example Rough Note.md"), "# Rough\n", "utf8");
     rmSync(inboxDirectory, { recursive: true, force: true });
     symlinkSync(externalDirectory, inboxDirectory, platform() === "win32" ? "junction" : "dir");
-    assert.deepEqual(verifyStarter(rootDirectory), ["Invalid required file: 00 Inbox/README.md"]);
+    assert.deepEqual(verifyStarter(rootDirectory), [
+      "Invalid required file: 1 - Rough Notes/README.md",
+      "Invalid required file: 1 - Rough Notes/Example Rough Note.md",
+    ]);
   } finally {
     rmSync(rootDirectory, { recursive: true, force: true });
     rmSync(externalDirectory, { recursive: true, force: true });
@@ -327,13 +368,13 @@ test("CLI exits with a path-oriented error for a missing required file", () => {
   const rootDirectory = createFixture();
   try {
     writeCompleteFixture(rootDirectory);
-    rmSync(join(rootDirectory, "Templates", "Note.md"));
+    rmSync(join(rootDirectory, "5 - Templates", "Knowledge Note.md"));
     const result = spawnSync(process.execPath, [fileURLToPath(new URL("./verify-starter.mjs", import.meta.url))], {
       cwd: rootDirectory,
       encoding: "utf8",
     });
     assert.equal(result.status, 1);
-    assert.match(result.stderr, /^Missing required file: Templates\/Note\.md\r?$/m);
+    assert.match(result.stderr, /^Missing required file: 5 - Templates\/Knowledge Note\.md\r?$/m);
   } finally {
     rmSync(rootDirectory, { recursive: true, force: true });
   }
@@ -364,6 +405,57 @@ test("CLI redacts a secret-shaped relative destination from stderr", () => {
   } finally {
     rmSync(rootDirectory, { recursive: true, force: true });
   }
+});
+
+test("example source contains only the invented title and example-only status", () => {
+  const content = readFileSync(
+    fileURLToPath(new URL("../2%20-%20Source%20Materials/Example%20Source.md", import.meta.url)),
+    "utf8",
+  );
+
+  assert.equal(content, "Example Source\nSource status: example only\n");
+});
+
+test("every numbered folder README links relatively to Home", () => {
+  const numberedReadmes = [
+    "0 - Knowledge Base/README.md",
+    "1 - Rough Notes/README.md",
+    "2 - Source Materials/README.md",
+    "3 - Tags/README.md",
+    "4 - Index/README.md",
+    "7 - Personal/README.md",
+  ];
+
+  for (const relativePath of numberedReadmes) {
+    const content = readFileSync(fileURLToPath(new URL(`../${encodeURI(relativePath)}`, import.meta.url)), "utf8");
+    assert.match(content, /\[[^\]]+\]\((?:\.\.\/)?4%20-%20Index\/Home\.md\)|\[[^\]]+\]\(Home\.md\)/);
+  }
+});
+
+test("Home matches the approved public navigation contract", () => {
+  const content = readFileSync(
+    fileURLToPath(new URL("../4%20-%20Index/Home.md", import.meta.url)),
+    "utf8",
+  );
+
+  assert.equal(content, [
+    "# Home",
+    "",
+    "- [[0 - Knowledge Base/Example Knowledge Note]]",
+    "- [[1 - Rough Notes/Example Rough Note]]",
+    "- [[2 - Source Materials/Example Source]]",
+    "- [[3 - Tags/Status]]",
+    "",
+    "## Reused block",
+    "",
+    "![[1 - Rough Notes/Example Rough Note#^refine-note]]",
+    "",
+  ].join("\n"));
+});
+
+test("root README states that the public sample has no real personal data", () => {
+  const content = readFileSync(fileURLToPath(new URL("../README.md", import.meta.url)), "utf8");
+  assert.match(content, /public sample contains no real personal data/i);
 });
 
 test("package metadata declares the MIT license", () => {

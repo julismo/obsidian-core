@@ -138,24 +138,29 @@ function runCli(rootDirectory, ...revisions) {
   });
 }
 
-test("exports the exact public file allowlist", () => {
+test("exports the exact numbered-vault public file allowlist", () => {
   assert.deepEqual(scanner.publicFiles, [
     ".github/workflows/ci.yml",
     ".gitignore",
-    "00 Inbox/README.md",
-    "10 Projects/README.md",
-    "20 Areas/README.md",
-    "30 Resources/README.md",
-    "40 Archive/README.md",
+    "0 - Knowledge Base/README.md",
+    "0 - Knowledge Base/Example Knowledge Note.md",
+    "1 - Rough Notes/README.md",
+    "1 - Rough Notes/Example Rough Note.md",
+    "2 - Source Materials/README.md",
+    "2 - Source Materials/Example Source.md",
+    "3 - Tags/README.md",
+    "3 - Tags/Status.md",
+    "4 - Index/README.md",
+    "4 - Index/Home.md",
+    "5 - Templates/Daily Note.md",
+    "5 - Templates/Knowledge Note.md",
+    "5 - Templates/Source Note.md",
+    "5 - Templates/Project Note.md",
+    "7 - Personal/README.md",
     "CONTRIBUTING.md",
     "LICENSE",
     "README.md",
     "SECURITY.md",
-    "Templates/Area.md",
-    "Templates/Daily Note.md",
-    "Templates/Note.md",
-    "Templates/Project.md",
-    "Templates/Resource.md",
     "package-lock.json",
     "package.json",
     "scripts/scan-public-safety.mjs",
@@ -660,6 +665,65 @@ test("rejects an unexpected tracked file", () => {
   });
 });
 
+test("history mode permits safe legacy paths while strict scanning rejects them", () => {
+  withRepository((rootDirectory) => {
+    const relativePath = "legacy-vault/old-note.md";
+    mkdirSync(path.dirname(path.join(rootDirectory, relativePath)), { recursive: true });
+    writeFileSync(path.join(rootDirectory, relativePath), "safe historical text");
+    stage(rootDirectory, relativePath);
+    const historicalRevision = commit(rootDirectory, "legacy vault path");
+
+    assert.deepEqual(scanTrackedRepository(rootDirectory), [
+      { category: "unexpected_tracked_file", path: relativePath },
+    ]);
+    assert.deepEqual(scanTrackedRepository(rootDirectory, historicalRevision), [
+      { category: "unexpected_tracked_file", path: relativePath },
+    ]);
+    assert.deepEqual(scanTrackedRepository(rootDirectory, historicalRevision, { history: true }), []);
+
+    const result = runCli(rootDirectory, "--history", historicalRevision);
+    assert.equal(result.status, 0);
+    assert.equal(result.stdout, "");
+    assert.equal(result.stderr, "");
+  });
+});
+
+test("history mode API rejects a missing revision without relaxing current-tree paths", () => {
+  withRepository((rootDirectory) => {
+    const relativePath = "legacy-vault/old-note.md";
+    mkdirSync(path.dirname(path.join(rootDirectory, relativePath)), { recursive: true });
+    writeFileSync(path.join(rootDirectory, relativePath), "safe current text");
+    stage(rootDirectory, relativePath);
+
+    assert.deepEqual(scanTrackedRepository(rootDirectory, undefined, { history: true }), [
+      { category: "scan_error", path: "." },
+    ]);
+  });
+});
+
+test("history mode detects credential-shaped historical content without exposing it", () => {
+  withRepository((rootDirectory) => {
+    const relativePath = "legacy-vault/old-note.md";
+    const credential = classicCredentialCandidate();
+    mkdirSync(path.dirname(path.join(rootDirectory, relativePath)), { recursive: true });
+    writeFileSync(path.join(rootDirectory, relativePath), credential);
+    stage(rootDirectory, relativePath);
+    const historicalRevision = commit(rootDirectory, "legacy credential");
+
+    assert.deepEqual(scanTrackedRepository(rootDirectory, historicalRevision, { history: true }), [
+      { category: "credential_candidate", path: relativePath },
+    ]);
+
+    const result = runCli(rootDirectory, "--history", historicalRevision);
+    assert.equal(result.status, 1);
+    assert.equal(result.stdout, "");
+    assert.deepEqual(result.stderr.split(/\r?\n/).filter(Boolean), [
+      `credential_candidate:${JSON.stringify(relativePath)}`,
+    ]);
+    assert.equal(result.stderr.includes(credential), false);
+  });
+});
+
 test("scanner source and regression tests scan cleanly", () => {
   const testPath = fileURLToPath(import.meta.url);
   assert.deepEqual(scanEntries([
@@ -677,8 +741,15 @@ test("CLI rejects extra or invalid revision arguments without Git error details"
   withRepository((rootDirectory) => {
     const extraArgumentResult = runCli(rootDirectory, "HEAD", "HEAD");
     const invalidRevisionResult = runCli(rootDirectory, "--invalid-revision");
+    const missingHistoryRevisionResult = runCli(rootDirectory, "--history");
+    const extraHistoryArgumentResult = runCli(rootDirectory, "--history", "HEAD", "HEAD");
 
-    for (const result of [extraArgumentResult, invalidRevisionResult]) {
+    for (const result of [
+      extraArgumentResult,
+      invalidRevisionResult,
+      missingHistoryRevisionResult,
+      extraHistoryArgumentResult,
+    ]) {
       assert.equal(result.status, 1);
       assert.equal(result.stdout, "");
       assert.equal(result.stderr, "scan_error\n");

@@ -5,20 +5,25 @@ import { fileURLToPath } from "node:url";
 export const publicFiles = Object.freeze([
   ".github/workflows/ci.yml",
   ".gitignore",
-  "00 Inbox/README.md",
-  "10 Projects/README.md",
-  "20 Areas/README.md",
-  "30 Resources/README.md",
-  "40 Archive/README.md",
+  "0 - Knowledge Base/README.md",
+  "0 - Knowledge Base/Example Knowledge Note.md",
+  "1 - Rough Notes/README.md",
+  "1 - Rough Notes/Example Rough Note.md",
+  "2 - Source Materials/README.md",
+  "2 - Source Materials/Example Source.md",
+  "3 - Tags/README.md",
+  "3 - Tags/Status.md",
+  "4 - Index/README.md",
+  "4 - Index/Home.md",
+  "5 - Templates/Daily Note.md",
+  "5 - Templates/Knowledge Note.md",
+  "5 - Templates/Source Note.md",
+  "5 - Templates/Project Note.md",
+  "7 - Personal/README.md",
   "CONTRIBUTING.md",
   "LICENSE",
   "README.md",
   "SECURITY.md",
-  "Templates/Area.md",
-  "Templates/Daily Note.md",
-  "Templates/Note.md",
-  "Templates/Project.md",
-  "Templates/Resource.md",
   "package-lock.json",
   "package.json",
   "scripts/scan-public-safety.mjs",
@@ -230,7 +235,10 @@ function readBlob(rootDirectory, objectId) {
   return gitBuffer(rootDirectory, ["cat-file", "blob", objectId]);
 }
 
-export function scanTrackedRepository(rootDirectory, revision) {
+export function scanTrackedRepository(rootDirectory, revision, { history = false } = {}) {
+  if (history && (typeof revision !== "string" || revision.trim().length === 0)) {
+    return [finding("scan_error", ".")];
+  }
   const findings = [];
   let repositoryRoot;
   let entries;
@@ -242,7 +250,7 @@ export function scanTrackedRepository(rootDirectory, revision) {
   }
 
   for (const entry of entries) {
-    if (!publicFileSet.has(normalizePath(entry.path))) {
+    if (!history && !publicFileSet.has(normalizePath(entry.path))) {
       findings.push(finding("unexpected_tracked_file", entry.path, isConfigurationPath(normalizePath(entry.path))));
     }
     const pathFindings = scanEntries([{ path: entry.path, text: "" }]);
@@ -281,9 +289,11 @@ function formatFinding(finding) {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
-    const revisions = process.argv.slice(2);
-    if (revisions.length > 1) throw new Error("too many arguments");
-    const findings = scanTrackedRepository(process.cwd(), revisions[0]);
+    const argumentsList = process.argv.slice(2);
+    const history = argumentsList[0] === "--history";
+    const revisions = history ? argumentsList.slice(1) : argumentsList;
+    if (revisions.length > 1 || (history && revisions.length !== 1)) throw new Error("invalid arguments");
+    const findings = scanTrackedRepository(process.cwd(), revisions[0], { history });
     if (findings.length > 0) {
       console.error(findings.some((item) => item.category === "scan_error")
         ? "scan_error"

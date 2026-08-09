@@ -30,7 +30,7 @@ jobs:
         run: |
           npm run scan:public-safety
           while IFS= read -r revision; do
-            npm run scan:public-safety -- "$revision"
+            npm run scan:public-safety -- --history "$revision"
           done < <(git rev-list --all)
 
       - name: Install dependencies
