@@ -508,6 +508,34 @@ test("does not treat ordinary prose colons or root-relative links as internal pa
   ]), []);
 });
 
+test("relaxes internal path detection only in history mode", () => {
+  const entries = [{
+    path: "note.md",
+    text: `Synced from ${["C", ":", "\\dev\\vault"].join("")} last night.`,
+  }];
+  assert.deepEqual(scanEntries(entries), [{ category: "internal_path", path: "note.md" }]);
+  assert.deepEqual(scanEntries(entries, { history: true }), []);
+});
+
+test("history mode relaxes internal paths while still reporting credentials", () => {
+  withRepository((rootDirectory) => {
+    const internalPath = ["C", ":", "\\dev\\vault\\note.md"].join("");
+    writeFileSync(path.join(rootDirectory, "README.md"), `Synced from ${internalPath}\n`);
+    writeFileSync(path.join(rootDirectory, "SECURITY.md"), classicCredentialCandidate());
+    stage(rootDirectory, "README.md");
+    stage(rootDirectory, "SECURITY.md");
+    const revision = commit(rootDirectory, "internal path and credential in history");
+
+    assert.deepEqual(scanTrackedRepository(rootDirectory, revision), [
+      { category: "internal_path", path: "README.md" },
+      { category: "credential_candidate", path: "SECURITY.md" },
+    ]);
+    assert.deepEqual(scanTrackedRepository(rootDirectory, revision, { history: true }), [
+      { category: "credential_candidate", path: "SECURITY.md" },
+    ]);
+  });
+});
+
 test("rejects a structural placeholder that carries content", () => {
   const directory = scanner.structuralDirectories[0];
   assert.deepEqual(scanEntries([{ path: `${directory}/.gitkeep`, text: "hidden private note\n" }]), [
