@@ -236,6 +236,9 @@ function readBlob(rootDirectory, objectId) {
 }
 
 export function scanTrackedRepository(rootDirectory, revision, { history = false } = {}) {
+  if (history && (typeof revision !== "string" || revision.trim().length === 0)) {
+    return [finding("scan_error", ".")];
+  }
   const findings = [];
   let repositoryRoot;
   let entries;

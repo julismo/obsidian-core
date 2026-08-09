@@ -688,6 +688,19 @@ test("history mode permits safe legacy paths while strict scanning rejects them"
   });
 });
 
+test("history mode API rejects a missing revision without relaxing current-tree paths", () => {
+  withRepository((rootDirectory) => {
+    const relativePath = "legacy-vault/old-note.md";
+    mkdirSync(path.dirname(path.join(rootDirectory, relativePath)), { recursive: true });
+    writeFileSync(path.join(rootDirectory, relativePath), "safe current text");
+    stage(rootDirectory, relativePath);
+
+    assert.deepEqual(scanTrackedRepository(rootDirectory, undefined, { history: true }), [
+      { category: "scan_error", path: "." },
+    ]);
+  });
+});
+
 test("history mode detects credential-shaped historical content without exposing it", () => {
   withRepository((rootDirectory) => {
     const relativePath = "legacy-vault/old-note.md";
