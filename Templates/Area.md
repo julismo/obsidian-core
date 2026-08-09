@@ -1,0 +1,7 @@
+# {{title}}
+
+## Purpose
+
+## Standards
+
+## Notes

@@ -1,0 +1,15 @@
+{
+  "name": "obsidian-starter",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "node --test scripts/*.node-test.mjs",
+    "verify": "node scripts/verify-starter.mjs",
+    "scan:public-safety": "node scripts/scan-public-safety.mjs"
+  }
+}

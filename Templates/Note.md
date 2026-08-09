@@ -1,0 +1,7 @@
+# {{title}}
+
+## Idea
+
+## Context
+
+## Links
