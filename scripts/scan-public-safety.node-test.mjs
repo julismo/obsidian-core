@@ -50,6 +50,10 @@ function credentialCandidates() {
   ];
 }
 
+function externalSymlinkTarget() {
+  return ["C", ":", "/external/target.txt"].join("");
+}
+
 function prohibitedBrandCandidates() {
   return [
     ["Open", "AI"].join(""),
@@ -138,8 +142,8 @@ function runCli(rootDirectory, ...revisions) {
   });
 }
 
-test("exports the exact numbered-vault public file allowlist", () => {
-  assert.deepEqual(scanner.publicFiles, [
+test("exports the exact numbered-vault public document allowlist", () => {
+  assert.deepEqual(scanner.publicFiles.filter((entry) => !entry.endsWith("/.gitkeep")), [
     ".github/workflows/ci.yml",
     ".gitignore",
     "0 - Knowledge Base/README.md",
@@ -161,6 +165,7 @@ test("exports the exact numbered-vault public file allowlist", () => {
     "LICENSE",
     "README.md",
     "SECURITY.md",
+    "STRUCTURE.md",
     "package-lock.json",
     "package.json",
     "scripts/scan-public-safety.mjs",
@@ -168,6 +173,94 @@ test("exports the exact numbered-vault public file allowlist", () => {
     "scripts/verify-starter.mjs",
     "scripts/verify-starter.node-test.mjs",
   ]);
+});
+
+test("exports the exact structural directory mirror", () => {
+  assert.deepEqual(scanner.structuralDirectories, [
+    "0 - Knowledge Base/0. Inbox",
+    "0 - Knowledge Base/1. Areas/1.1 Interaction Rules",
+    "0 - Knowledge Base/1. Areas/1.2 Profile",
+    "0 - Knowledge Base/1. Areas/1.3 Preferences and Style",
+    "0 - Knowledge Base/1. Areas/1.4 Tools and Stack/Agent Setup/profiles",
+    "0 - Knowledge Base/1. Areas/1.4 Tools and Stack/Agent Setup/templates/aliases",
+    "0 - Knowledge Base/1. Areas/1.4 Tools and Stack/Agent Setup/templates/commands",
+    "0 - Knowledge Base/1. Areas/1.4 Tools and Stack/Agent Setup/templates/rules",
+    "0 - Knowledge Base/1. Areas/1.4 Tools and Stack/Agent Setup/templates/scripts",
+    "0 - Knowledge Base/1. Areas/1.4 Tools and Stack/Agent Setup/templates/workflows",
+    "0 - Knowledge Base/1. Areas/1.5 Methods and Processes",
+    "0 - Knowledge Base/1. Areas/1.6 Vault Structure",
+    "0 - Knowledge Base/1. Areas/1.7 Maintenance System",
+    "0 - Knowledge Base/1. Areas/Strategic Planning",
+    "0 - Knowledge Base/2. Projects/_project-template/00 - Agent Scaffold/02 - Rules and Governance",
+    "0 - Knowledge Base/2. Projects/_project-template/00 - Agent Scaffold/03 - Commands",
+    "0 - Knowledge Base/2. Projects/_project-template/00 - Agent Scaffold/04 - Skills",
+    "0 - Knowledge Base/2. Projects/_project-template/00 - Agent Scaffold/05 - Protocols",
+    "0 - Knowledge Base/2. Projects/_project-template/00 - Agent Scaffold/06 - Templates",
+    "0 - Knowledge Base/2. Projects/_project-template/00 - Agent Scaffold/07 - Agents",
+    "0 - Knowledge Base/2. Projects/_project-template/00 - Agent Scaffold/08 - Memory/feedback",
+    "0 - Knowledge Base/2. Projects/_project-template/00 - Agent Scaffold/08 - Memory/project",
+    "0 - Knowledge Base/2. Projects/_project-template/00 - Agent Scaffold/08 - Memory/reference",
+    "0 - Knowledge Base/2. Projects/_project-template/00 - Agent Scaffold/10 - Examples",
+    "0 - Knowledge Base/2. Projects/_project-template/00 - Agent Scaffold/11 - Processes",
+    "0 - Knowledge Base/2. Projects/_project-template/00 - Agent Scaffold/12 - Pipeline",
+    "0 - Knowledge Base/2. Projects/_project-template/00 - Agent Scaffold/13 - Product",
+    "0 - Knowledge Base/2. Projects/_project-template/01 - Brief",
+    "0 - Knowledge Base/2. Projects/_project-template/02 - Operations",
+    "0 - Knowledge Base/2. Projects/_project-template/03 - Manual/Procedures",
+    "0 - Knowledge Base/2. Projects/_project-template/04 - Triage",
+    "0 - Knowledge Base/2. Projects/_project-template/05 - Demo",
+    "0 - Knowledge Base/2. Projects/_project-template/06 - Validation",
+    "0 - Knowledge Base/2. Projects/_project-template/90 - Internal/01 - Internal Meetings",
+    "0 - Knowledge Base/2. Projects/_project-template/90 - Internal/02 - Architecture",
+    "0 - Knowledge Base/2. Projects/_project-template/90 - Internal/03 - Management",
+    "0 - Knowledge Base/2. Projects/_project-template/99 - Models",
+    "0 - Knowledge Base/3. Resources/Systems/Agent Patterns/Cross-Project",
+    "0 - Knowledge Base/3. Resources/Systems/Agent Patterns/Global",
+    "0 - Knowledge Base/3. Resources/Systems/Agent Patterns/Skill Bundle",
+    "0 - Knowledge Base/3. Resources/To Study",
+    "0 - Knowledge Base/4. Archive",
+    "0 - Knowledge Base/_meta",
+    "1 - Rough Notes/1. Daily Notes",
+    "1 - Rough Notes/2. Newsletter/Archive",
+    "1 - Rough Notes/3. Canvas",
+    "1 - Rough Notes/4. Study/_course-template/Phase 1",
+    "1 - Rough Notes/4. Study/_course-template/Phase 2",
+    "2 - Source Materials/Images and Diagrams/Projects",
+    "2 - Source Materials/Images and Diagrams/Screenshots",
+    "2 - Source Materials/PDFs/Contracts",
+    "2 - Source Materials/PDFs/Culture",
+    "2 - Source Materials/PDFs/Generated Slides",
+    "2 - Source Materials/PDFs/Visual References",
+    "2 - Source Materials/Repositories",
+    "2 - Source Materials/Talks",
+    "2 - Source Materials/Videos",
+    "2 - Source Materials/Web Articles",
+    "3 - Tags/General",
+    "3 - Tags/Management and Projects",
+    "3 - Tags/Tools",
+    "4 - Index/Agency",
+    "4 - Index/Projects/MVP",
+    "4 - Index/Software/No-Code",
+    "7 - Personal/1. Areas/1.1 Documents and Identity",
+    "7 - Personal/2. Projects/_project-template/Leads",
+    "7 - Personal/2. Projects/_project-template/Research",
+    "7 - Personal/3. Resources",
+    "7 - Personal/4. Archive",
+  ]);
+});
+
+test("allowlists exactly one placeholder per structural directory", () => {
+  assert.deepEqual(
+    scanner.publicFiles.filter((entry) => entry.endsWith("/.gitkeep")),
+    scanner.structuralDirectories.map((directory) => `${directory}/.gitkeep`),
+  );
+});
+
+test("structural directories carry no client, personal, or brand identifiers", () => {
+  for (const directory of scanner.structuralDirectories) {
+    assert.deepEqual(scanEntries([{ path: `${directory}/.gitkeep`, text: "" }]), []);
+    assert.match(directory, /^[0-9A-Za-z _.\-/]+$/);
+  }
 });
 
 test("reports forbidden paths, attachments, and credential candidates without values", () => {
@@ -379,6 +472,50 @@ test("detects external URL, contact, and prohibited brand text", () => {
   }
 });
 
+test("detects internal filesystem paths in tracked paths and content", () => {
+  const candidates = [
+    ["C", ":", "\\dev\\vault\\private-note.md"].join(""),
+    ["D", ":", "/backup/vault"].join(""),
+    ["/", "home", "/operator/vault"].join(""),
+    ["/", "Users", "/operator/Documents/vault"].join(""),
+    ["/", "mnt", "/c/dev/vault"].join(""),
+  ];
+  const findings = scanEntries(candidates.map((candidate, index) => ({
+    path: `internal-${index}.md`,
+    text: `Synced from ${candidate} last night.`,
+  })));
+
+  assert.deepEqual(findings, candidates.map((candidate, index) => ({
+    category: "internal_path",
+    path: `internal-${index}.md`,
+  })));
+  const serialized = JSON.stringify(findings);
+  for (const candidate of candidates) assert.equal(serialized.includes(candidate), false);
+});
+
+test("redacts internal filesystem paths instead of echoing them", () => {
+  const candidate = ["C", ":", "\\dev\\vault"].join("");
+  assert.equal(scanner.redactSensitiveText(`from ${candidate} here`), "from [REDACTED] here");
+  assert.deepEqual(scanEntries([{ path: `notes/${candidate}/note.md`, text: "" }]), [
+    { category: "internal_path", path: "notes/[REDACTED]" },
+  ]);
+});
+
+test("does not treat ordinary prose colons or root-relative links as internal paths", () => {
+  assert.deepEqual(scanEntries([
+    { path: "README.md", text: "Structure: see the index folder for navigation." },
+    { path: "CONTRIBUTING.md", text: "Ratio 3:4 and a note about optional extras." },
+  ]), []);
+});
+
+test("rejects a structural placeholder that carries content", () => {
+  const directory = scanner.structuralDirectories[0];
+  assert.deepEqual(scanEntries([{ path: `${directory}/.gitkeep`, text: "hidden private note\n" }]), [
+    { category: "non_empty_placeholder", path: `${directory}/.gitkeep` },
+  ]);
+  assert.deepEqual(scanEntries([{ path: `${directory}/.gitkeep`, text: "" }]), []);
+});
+
 test("distinguishes conventional telephone formats from common numeric metadata", () => {
   const telephoneCandidates = [
     ["+351", "912", "345", "678"].join(" "),
@@ -555,7 +692,7 @@ test("rejects standalone subtree revisions instead of scanning a clean subset", 
 test("rejects tracked symlink index entries without reading their targets", () => {
   withRepository((rootDirectory) => {
     const relativePath = "README.md";
-    stageBlob(rootDirectory, "120000", relativePath, "C:/external/target.txt");
+    stageBlob(rootDirectory, "120000", relativePath, externalSymlinkTarget());
 
     assert.deepEqual(scanTrackedRepository(rootDirectory), [
       { category: "symlink_file", path: relativePath },
@@ -566,7 +703,7 @@ test("rejects tracked symlink index entries without reading their targets", () =
 test("reports current and historical symlink modes from Git metadata", () => {
   withRepository((rootDirectory) => {
     const relativePath = "README.md";
-    stageBlob(rootDirectory, "120000", relativePath, "C:/external/target.txt");
+    stageBlob(rootDirectory, "120000", relativePath, externalSymlinkTarget());
     assert.deepEqual(scanTrackedRepository(rootDirectory), [
       { category: "symlink_file", path: relativePath },
     ]);
