@@ -5,7 +5,7 @@ import { platform, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { requiredFiles, verifyStarter } from "./verify-starter.mjs";
+import { requiredFiles, structuralDirectories, verifyStarter } from "./verify-starter.mjs";
 
 function credentialCandidate() {
   return ["gh", "p_", "abcdefghijklmnopqrstuvwxyz1234567890"].join("");
@@ -66,7 +66,9 @@ test("exports the numbered vault taxonomy without legacy starter paths", () => {
   ];
 
   assert.deepEqual(
-    requiredFiles.filter((relativePath) => /^\d - /.test(relativePath)),
+    requiredFiles.filter((relativePath) => (
+      /^\d - /.test(relativePath) && !relativePath.endsWith("/.gitkeep")
+    )),
     numberedVaultFiles,
   );
   assert.equal(
@@ -304,6 +306,9 @@ test("rejects a required Markdown source that escapes through a directory juncti
     assert.deepEqual(verifyStarter(rootDirectory), [
       "Invalid required file: 1 - Rough Notes/README.md",
       "Invalid required file: 1 - Rough Notes/Example Rough Note.md",
+      ...requiredFiles
+        .filter((item) => item.startsWith("1 - Rough Notes/") && item.endsWith("/.gitkeep"))
+        .map((item) => `Missing required file: ${item}`),
     ]);
   } finally {
     rmSync(rootDirectory, { recursive: true, force: true });
@@ -451,6 +456,50 @@ test("Home matches the approved public navigation contract", () => {
     "![[1 - Rough Notes/Example Rough Note#^refine-note]]",
     "",
   ].join("\n"));
+});
+
+test("mirrors every structural directory as an empty tracked placeholder", () => {
+  for (const directory of structuralDirectories) {
+    const placeholder = fileURLToPath(new URL(`../${encodeURI(directory)}/.gitkeep`, import.meta.url));
+    assert.equal(readFileSync(placeholder, "utf8"), "");
+    assert.equal(requiredFiles.includes(`${directory}/.gitkeep`), true);
+  }
+});
+
+test("rejects a structural placeholder that carries content", () => {
+  const rootDirectory = createFixture();
+  try {
+    writeCompleteFixture(rootDirectory);
+    const relativePath = `${structuralDirectories[0]}/.gitkeep`;
+    writeFileSync(join(rootDirectory, relativePath), "hidden private note\n", "utf8");
+    assert.deepEqual(verifyStarter(rootDirectory), [
+      `Structural placeholder is not empty: ${relativePath}`,
+    ]);
+  } finally {
+    rmSync(rootDirectory, { recursive: true, force: true });
+  }
+});
+
+test("STRUCTURE.md documents every mirrored directory", () => {
+  const content = readFileSync(fileURLToPath(new URL("../STRUCTURE.md", import.meta.url)), "utf8");
+  for (const directory of structuralDirectories) {
+    const segments = directory.split("/");
+    for (const segment of segments) {
+      assert.equal(content.includes(segment), true, `STRUCTURE.md omits "${segment}"`);
+    }
+  }
+});
+
+test("adds no per-folder README beyond the original numbered sections", () => {
+  assert.deepEqual(requiredFiles.filter((relativePath) => relativePath.endsWith("README.md")), [
+    "0 - Knowledge Base/README.md",
+    "1 - Rough Notes/README.md",
+    "2 - Source Materials/README.md",
+    "3 - Tags/README.md",
+    "4 - Index/README.md",
+    "7 - Personal/README.md",
+    "README.md",
+  ]);
 });
 
 test("root README states that the public sample has no real personal data", () => {

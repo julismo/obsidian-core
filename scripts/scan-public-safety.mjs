@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const publicFiles = Object.freeze([
+const publicDocuments = [
   ".github/workflows/ci.yml",
   ".gitignore",
   "0 - Knowledge Base/README.md",
@@ -24,12 +24,90 @@ export const publicFiles = Object.freeze([
   "LICENSE",
   "README.md",
   "SECURITY.md",
+  "STRUCTURE.md",
   "package-lock.json",
   "package.json",
   "scripts/scan-public-safety.mjs",
   "scripts/scan-public-safety.node-test.mjs",
   "scripts/verify-starter.mjs",
   "scripts/verify-starter.node-test.mjs",
+];
+
+export const structuralDirectories = Object.freeze([
+  "0 - Knowledge Base/0. Inbox",
+  "0 - Knowledge Base/1. Areas/1.1 Interaction Rules",
+  "0 - Knowledge Base/1. Areas/1.2 Profile",
+  "0 - Knowledge Base/1. Areas/1.3 Preferences and Style",
+  "0 - Knowledge Base/1. Areas/1.4 Tools and Stack/Agent Setup/profiles",
+  "0 - Knowledge Base/1. Areas/1.4 Tools and Stack/Agent Setup/templates/aliases",
+  "0 - Knowledge Base/1. Areas/1.4 Tools and Stack/Agent Setup/templates/commands",
+  "0 - Knowledge Base/1. Areas/1.4 Tools and Stack/Agent Setup/templates/rules",
+  "0 - Knowledge Base/1. Areas/1.4 Tools and Stack/Agent Setup/templates/scripts",
+  "0 - Knowledge Base/1. Areas/1.4 Tools and Stack/Agent Setup/templates/workflows",
+  "0 - Knowledge Base/1. Areas/1.5 Methods and Processes",
+  "0 - Knowledge Base/1. Areas/1.6 Vault Structure",
+  "0 - Knowledge Base/1. Areas/1.7 Maintenance System",
+  "0 - Knowledge Base/1. Areas/Strategic Planning",
+  "0 - Knowledge Base/2. Projects/_project-template/00 - Agent Scaffold/02 - Rules and Governance",
+  "0 - Knowledge Base/2. Projects/_project-template/00 - Agent Scaffold/03 - Commands",
+  "0 - Knowledge Base/2. Projects/_project-template/00 - Agent Scaffold/04 - Skills",
+  "0 - Knowledge Base/2. Projects/_project-template/00 - Agent Scaffold/05 - Protocols",
+  "0 - Knowledge Base/2. Projects/_project-template/00 - Agent Scaffold/06 - Templates",
+  "0 - Knowledge Base/2. Projects/_project-template/00 - Agent Scaffold/07 - Agents",
+  "0 - Knowledge Base/2. Projects/_project-template/00 - Agent Scaffold/08 - Memory/feedback",
+  "0 - Knowledge Base/2. Projects/_project-template/00 - Agent Scaffold/08 - Memory/project",
+  "0 - Knowledge Base/2. Projects/_project-template/00 - Agent Scaffold/08 - Memory/reference",
+  "0 - Knowledge Base/2. Projects/_project-template/00 - Agent Scaffold/10 - Examples",
+  "0 - Knowledge Base/2. Projects/_project-template/00 - Agent Scaffold/11 - Processes",
+  "0 - Knowledge Base/2. Projects/_project-template/00 - Agent Scaffold/12 - Pipeline",
+  "0 - Knowledge Base/2. Projects/_project-template/00 - Agent Scaffold/13 - Product",
+  "0 - Knowledge Base/2. Projects/_project-template/01 - Brief",
+  "0 - Knowledge Base/2. Projects/_project-template/02 - Operations",
+  "0 - Knowledge Base/2. Projects/_project-template/03 - Manual/Procedures",
+  "0 - Knowledge Base/2. Projects/_project-template/04 - Triage",
+  "0 - Knowledge Base/2. Projects/_project-template/05 - Demo",
+  "0 - Knowledge Base/2. Projects/_project-template/06 - Validation",
+  "0 - Knowledge Base/2. Projects/_project-template/90 - Internal/01 - Internal Meetings",
+  "0 - Knowledge Base/2. Projects/_project-template/90 - Internal/02 - Architecture",
+  "0 - Knowledge Base/2. Projects/_project-template/90 - Internal/03 - Management",
+  "0 - Knowledge Base/2. Projects/_project-template/99 - Models",
+  "0 - Knowledge Base/3. Resources/Systems/Agent Patterns/Cross-Project",
+  "0 - Knowledge Base/3. Resources/Systems/Agent Patterns/Global",
+  "0 - Knowledge Base/3. Resources/Systems/Agent Patterns/Skill Bundle",
+  "0 - Knowledge Base/3. Resources/To Study",
+  "0 - Knowledge Base/4. Archive",
+  "0 - Knowledge Base/_meta",
+  "1 - Rough Notes/1. Daily Notes",
+  "1 - Rough Notes/2. Newsletter/Archive",
+  "1 - Rough Notes/3. Canvas",
+  "1 - Rough Notes/4. Study/_course-template/Phase 1",
+  "1 - Rough Notes/4. Study/_course-template/Phase 2",
+  "2 - Source Materials/Images and Diagrams/Projects",
+  "2 - Source Materials/Images and Diagrams/Screenshots",
+  "2 - Source Materials/PDFs/Contracts",
+  "2 - Source Materials/PDFs/Culture",
+  "2 - Source Materials/PDFs/Generated Slides",
+  "2 - Source Materials/PDFs/Visual References",
+  "2 - Source Materials/Repositories",
+  "2 - Source Materials/Talks",
+  "2 - Source Materials/Videos",
+  "2 - Source Materials/Web Articles",
+  "3 - Tags/General",
+  "3 - Tags/Management and Projects",
+  "3 - Tags/Tools",
+  "4 - Index/Agency",
+  "4 - Index/Projects/MVP",
+  "4 - Index/Software/No-Code",
+  "7 - Personal/1. Areas/1.1 Documents and Identity",
+  "7 - Personal/2. Projects/_project-template/Leads",
+  "7 - Personal/2. Projects/_project-template/Research",
+  "7 - Personal/3. Resources",
+  "7 - Personal/4. Archive",
+]);
+
+export const publicFiles = Object.freeze([
+  ...publicDocuments,
+  ...structuralDirectories.map((directory) => `${directory}/.gitkeep`),
 ]);
 
 const publicFileSet = new Set(publicFiles);
@@ -46,6 +124,7 @@ const externalUrlPattern = /\bhttps?:\/\/[^\s<>"']+/gi;
 const emailPattern = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.(?!example\b|invalid\b|localhost\b|test\b)[A-Z]{2,}\b/gi;
 const telephonePattern = /\+\d(?:[\s().-]*\d){7,14}\b|(?<![A-Za-z0-9])\d{9,10}(?![A-Za-z0-9])|(?<![A-Za-z0-9:.-])(?!(?:\d{4}-\d{2}-\d{2})\b)(?:\(\d{2,4}\)|\d{2,4})(?:[ -]+\d{2,4}){2,4}\b/g;
 const configurationPathPattern = /(?<![A-Za-z0-9_.-])\.(?:obsidian|config)(?:[\\/]|$)|(?<![A-Za-z0-9_.-])plugins?[\\/]/gim;
+const internalFilesystemPathPattern = /(?<![A-Za-z0-9])[A-Za-z]:[\\/][^\s"'<>|]*|(?<![A-Za-z0-9._-])\/(?:home|mnt|media|Users|root|srv|opt)\/[^\s"'<>|]*/gi;
 const prohibitedBrandPattern = new RegExp(
   `\\b(?:${[
     ["Open", "AI"],
@@ -68,8 +147,10 @@ const contentRules = [
   ["external_url", externalUrlPattern],
   ["contact_data", emailPattern, telephonePattern],
   ["configuration_path", configurationPathPattern],
+  ["internal_path", internalFilesystemPathPattern],
   ["prohibited_brand", prohibitedBrandPattern],
 ];
+const structuralPlaceholderPattern = /(?:^|\/)\.gitkeep$/;
 const forbiddenAttachment = /\.(?:7z|aac|avi|avif|bmp|bz2|docx?|epub|flac|gif|gz|heic|ico|jpe?g|m4[av]|mkv|mov|mp3|mp4|odp|ods|odt|ogg|pdf|png|pptx?|rar|rtf|svg|tar|tiff?|wav|webm|webp|xlsx?|xz|zip)$/i;
 const redactedSpan = "[REDACTED]";
 
@@ -113,8 +194,13 @@ function searchableText(entry, normalizedPath) {
     .join("\n");
 }
 
-export function scanEntries(entries) {
+export function scanEntries(entries, { history = false } = {}) {
   const findings = [];
+  // Historical blobs predate the internal-path rule and cannot be corrected without
+  // rewriting published history. Every secret-bearing rule still applies to them.
+  const activeRules = history
+    ? contentRules.filter(([category]) => category !== "internal_path")
+    : contentRules;
   for (const entry of entries) {
     const normalizedPath = normalizePath(entry.path);
     const entryText = searchableText(entry, normalizedPath);
@@ -136,7 +222,10 @@ export function scanEntries(entries) {
       findings.push(finding("forbidden_attachment", normalizedPath));
       continue;
     }
-    for (const [category, ...patterns] of contentRules) {
+    if (structuralPlaceholderPattern.test(normalizedPath) && entryText.length > 0) {
+      findings.push(finding("non_empty_placeholder", normalizedPath));
+    }
+    for (const [category, ...patterns] of activeRules) {
       let matched = false;
       for (const pattern of patterns) {
         pattern.lastIndex = 0;
@@ -253,7 +342,7 @@ export function scanTrackedRepository(rootDirectory, revision, { history = false
     if (!history && !publicFileSet.has(normalizePath(entry.path))) {
       findings.push(finding("unexpected_tracked_file", entry.path, isConfigurationPath(normalizePath(entry.path))));
     }
-    const pathFindings = scanEntries([{ path: entry.path, text: "" }]);
+    const pathFindings = scanEntries([{ path: entry.path, text: "" }], { history });
     if (pathFindings.length > 0) {
       findings.push(...pathFindings);
       continue;
@@ -275,7 +364,7 @@ export function scanTrackedRepository(rootDirectory, revision, { history = false
       findings.push(...scanEntries([{
         path: entry.path,
         text: blob.toString("utf8"),
-      }]));
+      }], { history }));
     } catch {
       findings.push(finding("unreadable_file", entry.path));
     }
