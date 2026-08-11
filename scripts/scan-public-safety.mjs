@@ -165,15 +165,28 @@ const internalFilesystemPathPattern = new RegExp([
 // filename, and collapsing it would let a distinct file inherit an allowlisted path's
 // permission. Such paths are rejected outright rather than normalized.
 const forbiddenPathCharacter = String.fromCharCode(92);
-const prohibitedBrandPattern = new RegExp(
-  `\\b(?:${[
-    ["Open", "AI"],
-    ["Anth", "ropic"],
-    ["Clau", "de"],
-    ["Tr", "ion"],
-  ].map((fragments) => fragments.join("")).join("|")})\\b`,
+// Only the author's own company. Tool and vendor names were removed: blocking them was a
+// stylistic rule that made it impossible to write credibly about how the work is done,
+// and naming a tool discloses nothing. Naming the company starts disclosing its operations.
+const companyBoundaryPattern = new RegExp(
+  `\\b(?:${[["Tr", "ion"]].map((fragments) => fragments.join("")).join("|")})\\b`,
   "gi",
 );
+
+// Citing a source is legitimate in the documents that explain this repository, so the
+// plain external-URL rule does not apply to them. These rules do, everywhere, so the
+// exemption cannot become a way to publish a private share link.
+const citationExemptPaths = new Set([
+  "README.md", "CONTRIBUTING.md", "SECURITY.md", "STRUCTURE.md", "THREAT-MODEL.md",
+]);
+const unsafeUrlPatterns = [
+  // Credentials embedded before the host.
+  /\bhttps?:\/\/[^\s<>"'/@]*@[^\s<>"']+/gi,
+  // Loopback, link-local, private ranges, and reserved internal suffixes.
+  /\bhttps?:\/\/(?:localhost|127\.\d{1,3}\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|[^\s<>"'/]*\.(?:local|internal|lan|localdomain|home|corp))(?::\d+)?(?:[/?#][^\s<>"']*)?/gi,
+  // Anything that is not the web: file, ftp, smb, and the rest.
+  /(?<![A-Za-z0-9+.-])(?!https?:)[a-z][a-z0-9+.-]*:\/\/[^\s<>"']+/gi,
+];
 const approvedLocalStateIgnoreRules = new Set([
   [[".", "obsidian"].join(""), ""].join("/"),
   ".DS_Store",
@@ -184,12 +197,17 @@ const approvedLocalStateIgnoreRules = new Set([
 ]);
 const contentRules = [
   ["credential_candidate", ...credentialPatterns],
+  ["unsafe_url", ...unsafeUrlPatterns],
   ["external_url", externalUrlPattern],
   ["contact_data", emailPattern, telephonePattern],
   ["configuration_path", configurationPathPattern],
   ["internal_path", internalFilesystemPathPattern],
-  ["prohibited_brand", prohibitedBrandPattern],
+  ["company_boundary", companyBoundaryPattern],
 ];
+// Rules that a documentation path is allowed to trip, because citing a source there is
+// the point. Everything else, including every unsafe_url pattern, still applies.
+const citationExemptRules = new Set(["external_url"]);
+const emptyRuleSet = new Set();
 const structuralPlaceholderPattern = /(?:^|\/)\.gitkeep$/;
 const forbiddenAttachment = /\.(?:7z|aac|avi|avif|bmp|bz2|docx?|epub|flac|gif|gz|heic|ico|jpe?g|m4[av]|mkv|mov|mp3|mp4|odp|ods|odt|ogg|pdf|png|pptx?|rar|rtf|svg|tar|tiff?|wav|webm|webp|xlsx?|xz|zip)$/i;
 const redactedSpan = "[REDACTED]";
@@ -275,7 +293,9 @@ export function scanEntries(entries, { history = false } = {}) {
     if (structuralPlaceholderPattern.test(normalizedPath) && entryText.length > 0) {
       findings.push(finding("non_empty_placeholder", normalizedPath));
     }
+    const exemptRules = citationExemptPaths.has(normalizedPath) ? citationExemptRules : emptyRuleSet;
     for (const [category, ...patterns] of activeRules) {
+      if (exemptRules.has(category)) continue;
       let matched = false;
       for (const pattern of patterns) {
         pattern.lastIndex = 0;

@@ -21,9 +21,11 @@ Checked by machine rather than by discipline:
 
 - `npm run verify` holds the repository to an exact allowlist. A file that is not on the
   list fails the build, and structural placeholders must be empty.
-- `npm run scan:public-safety` rejects credentials, contact data, external URLs, internal
-  filesystem paths, application configuration, attachments, and commit messages carrying
-  any of those.
+- `npm run scan:public-safety` rejects credentials, contact data, internal filesystem
+  paths, application configuration, attachments, and commit messages carrying any of those.
+  Vault notes may not carry external links; the documents that explain this repository may
+  cite sources. Either way, a URL with embedded credentials, a private or internal host, or
+  a non-web scheme is refused everywhere.
 - CI runs both on every push, and re-scans the content of every reachable commit.
 
 The allowlist is the control that actually holds for the current tree: paths are compared

@@ -15,6 +15,7 @@ implied by silence.
 | A structural placeholder is used to smuggle text | Placeholders must be empty, checked in both the scanner and the verifier. |
 | A distinct path impersonates an allowed one | Paths are authorised as raw Git paths, before any normalisation. |
 | Credentials, contact data or an internal machine path in a note | Pattern rules over file content and commit messages. |
+| A private share link, a credentialed URL, or an internal host | Refused in every file, including the documents allowed to cite sources. |
 | An attachment or application setting is committed | Rejected by extension and by path shape. |
 
 The failure mode that matters is the first row. It does not depend on a pattern matching
@@ -44,6 +45,14 @@ Stated plainly, because a boundary that overreaches is worse than none.
   pattern settles that. Human review does.
 - **Pattern rules match common shapes only.** Each additional shape buys false positives
   without closing the class. They are deliberately narrow.
+- **Documentation may cite sources.** The five documents that explain this repository are
+  exempt from the plain external-link rule, because a reference without a source is worth
+  little. They remain subject to every other rule, including the refusal of credentialed,
+  private and non-web URLs. A link that is merely unwise is not caught.
+- **One company name is refused, no other.** The author's own company is blocked as a
+  tripwire against drifting into writing about its operations. Tool and vendor names are
+  deliberately writable: naming a tool discloses nothing, and forbidding it made honest
+  method writing impossible.
 
 ## The honest promise
 
