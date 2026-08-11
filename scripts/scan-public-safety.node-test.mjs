@@ -55,12 +55,12 @@ function externalSymlinkTarget() {
 }
 
 function prohibitedBrandCandidates() {
-  return [
-    ["Open", "AI"].join(""),
-    ["Anth", "ropic"].join(""),
-    ["Clau", "de"].join(""),
-    ["Tr", "ion"].join(""),
-  ];
+  // Only the author's own company remains blocked. It is a boundary, not a brand rule.
+  return [["Tr", "ion"].join("")];
+}
+
+function toolNamesThatMustBeWritable() {
+  return [["Open", "AI"].join(""), ["Anth", "ropic"].join(""), ["Clau", "de"].join("")];
 }
 
 function brandCaseVariants() {
@@ -455,24 +455,24 @@ test("allows only canonical local-state ignore rules", () => {
   }]), [{ category: "configuration_path", path: ".gitignore" }]);
 });
 
-test("detects external URL, contact, and prohibited brand text", () => {
-  const externalUrl = ["https", "://", "example.test", "/reference"].join("");
+test("detects external URL, contact, and company boundary text", () => {
+  const externalUrl = ["https", "://", "reference.example", "/page"].join("");
   const emailAddress = ["person", "example.com"].join("@");
   const telephone = ["+351", "912", "345", "678"].join(" ");
   const brands = brandCaseVariants();
   const findings = scanEntries([
-    { path: "url.md", text: externalUrl },
+    { path: "notes/url.md", text: externalUrl },
     { path: "email.md", text: emailAddress },
     { path: "telephone.md", text: telephone },
     ...brands.map((brand, index) => ({ path: `brand-${index}.md`, text: brand })),
   ]);
 
   assert.deepEqual(findings, [
-    { category: "external_url", path: "url.md" },
+    { category: "external_url", path: "notes/url.md" },
     { category: "contact_data", path: "email.md" },
     { category: "contact_data", path: "telephone.md" },
     ...brands.map((brand, index) => ({
-      category: "prohibited_brand",
+      category: "company_boundary",
       path: `brand-${index}.md`,
     })),
   ]);
@@ -480,6 +480,42 @@ test("detects external URL, contact, and prohibited brand text", () => {
   for (const candidate of [externalUrl, emailAddress, telephone, ...brands]) {
     assert.equal(serialized.includes(candidate), false);
   }
+});
+
+test("tool and vendor names are writable, so method notes can name what they use", () => {
+  const names = toolNamesThatMustBeWritable();
+  assert.deepEqual(scanEntries(names.map((name, index) => ({
+    path: `tool-${index}.md`,
+    text: `This workflow runs on ${name} and that is worth saying plainly.`,
+  }))), []);
+});
+
+test("root documentation may cite sources, vault notes may not", () => {
+  const citation = ["https", "://", "reference.example", "/article"].join("");
+  const documents = ["README.md", "CONTRIBUTING.md", "SECURITY.md", "STRUCTURE.md", "THREAT-MODEL.md"];
+  assert.deepEqual(scanEntries(documents.map((path) => ({ path, text: `See ${citation}.` }))), []);
+  assert.deepEqual(scanEntries([{ path: "0 - Knowledge Base/note.md", text: `See ${citation}.` }]), [
+    { category: "external_url", path: "0 - Knowledge Base/note.md" },
+  ]);
+});
+
+test("the citation exemption never admits a credentialed, private, or non-web URL", () => {
+  const unsafe = [
+    ["https", "://", "user:secret", "@", "host.example", "/x"].join(""),
+    ["https", "://", "localhost", ":8080/admin"].join(""),
+    ["https", "://", "192.168", ".1.20", "/share"].join(""),
+    ["https", "://", "wiki.internal", "/runbook"].join(""),
+    ["file", "://", "/vault/private"].join(""),
+  ];
+  // Blocked in the exempt documents too, which is what keeps the exemption honest.
+  const findings = scanEntries(unsafe.map((value, index) => ({
+    path: index % 2 === 0 ? "README.md" : "STRUCTURE.md",
+    text: `Reference: ${value}`,
+  })));
+  assert.equal(findings.length, unsafe.length);
+  assert.equal(findings.every((item) => item.category === "unsafe_url"), true);
+  const serialized = JSON.stringify(findings);
+  for (const value of unsafe) assert.equal(serialized.includes(value), false);
 });
 
 test("detects internal filesystem paths in tracked paths and content", () => {
